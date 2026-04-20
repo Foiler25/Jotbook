@@ -6,6 +6,7 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
     private let webView: WKWebView
     private var watcher: DispatchSourceFileSystemObject?
     private var watchedFD: CInt = -1
+    var onClose: (() -> Void)?
 
     override init() {
         webView = WKWebView(frame: .zero)
@@ -15,7 +16,7 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Jot Preview"
+        window.title = "Jotbook Preview"
         window.contentView = webView
         window.center()
         window.isReleasedWhenClosed = false
@@ -95,6 +96,20 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
     // NSWindowDelegate
     func windowWillClose(_ notification: Notification) {
         stopWatcher()
+        teardownWebView()
+        onClose?()
+    }
+
+    private func teardownWebView() {
+        webView.stopLoading()
+        webView.navigationDelegate = nil
+        webView.uiDelegate = nil
+        // Replace the rendered document with an empty blank page so the
+        // WebContent process has nothing left to hold on to.
+        webView.loadHTMLString("", baseURL: nil)
+        // Detach from the window so the retain chain unwinds when the
+        // controller itself deallocates.
+        window.contentView = nil
     }
 }
 

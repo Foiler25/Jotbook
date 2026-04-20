@@ -459,7 +459,7 @@ struct SettingsView: View {
                         NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
                     }
                     .frame(width: 160, height: 24)
-                    Text("Quits Jot from anywhere when enabled.")
+                    Text("Quits Jotbook from anywhere when enabled.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -538,7 +538,6 @@ private func persistJotbooks() {
     private func jotbookSections(for binding: Binding<Jotbook>) -> some View {
         let nb = binding.wrappedValue
         let nbID = nb.id
-        let isActive = nbID.uuidString == activeJotbookID
 
         Section(nb.name.isEmpty ? "Jotbook" : nb.name) {
             HStack {

@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="Jot/Assets.xcassets/AppIcon.appiconset/icon_256.png" alt="Jot" width="160" height="160" />
+<img src="Jot/Assets.xcassets/AppIcon.appiconset/icon_256.png" alt="JotBook" width="160" height="160" />
 
-# Jot
+# JotBook
 
 **A lightweight menubar note-taker for macOS.**
 Any number of Jotbooks (notebooks), one popover per capture, plain markdown files on disk.
@@ -11,9 +11,9 @@ Any number of Jotbooks (notebooks), one popover per capture, plain markdown file
 
 ---
 
-## What is Jot?
+## What is JotBook?
 
-Jot lives in your menubar and lets you capture a quick thought without context-switching. Click the icon (or assign a per-jotbook hotkey), type your note, press ⌘↩, and it's timestamped and appended to the active jotbook's markdown file. Run as many Jotbooks as you want, each with its own file and optional dedicated shortcuts. No database, no cloud, no sync conflicts — just plain `.md` files you can open, grep, back up, or sync however you already handle text files.
+JotBook lives in your menubar and lets you capture a quick thought without context-switching. Click the icon (or assign a per-jotbook hotkey), type your note, press ⌘↩, and it's timestamped and appended to the active jotbook's markdown file. Run as many Jotbooks as you want, each with its own file and optional dedicated shortcuts. No database, no cloud, no sync conflicts — just plain `.md` files you can open, grep, back up, or sync however you already handle text files.
 
 ## Features
 
@@ -33,15 +33,15 @@ Jot lives in your menubar and lets you capture a quick thought without context-s
 - **Plain markdown** — your notes live in `.md` files you pick (default: `~/Documents/JotBook.md`).
 - **Multiple Jotbooks** — manage any number of named Jotbooks, each with its own file path. Switch the active one from the right-click menu's "Switch Jotbook" submenu. Each jotbook can have its own dedicated capture and open-file shortcuts.
 - **Smart path defaults** — brand-new installs get `JotBook.md`; existing users keep whatever file they already had. New Jotbooks auto-name their file as `JotBook-{name}.md` and the path follows the name as you rename the Jotbook. You can pin a specific file by explicitly picking one from the Choose… dialog.
-- **Folder-or-file picker** — Choose… accepts either a folder (Jot auto-creates/auto-names the file from the jotbook's name) or a specific `.md` file (Jot uses that exact path and stops auto-renaming).
-- **Rename warning** — when renaming a jotbook with auto-named path would leave notes behind in the old file, Jot shows a confirmation alert after you click out of the name field, with a "Don't show again" checkbox. An "About rename behavior" link in Settings re-surfaces the explanation so you can read it or un-suppress the alert.
+- **Folder-or-file picker** — Choose… accepts either a folder (Jotbook auto-creates/auto-names the file from the jotbook's name) or a specific `.md` file (JotBook uses that exact path and stops auto-renaming).
+- **Rename warning** — when renaming a jotbook with auto-named path would leave notes behind in the old file, Jotbook shows a confirmation alert after you click out of the name field, with a "Don't show again" checkbox. An "About rename behavior" link in Settings re-surfaces the explanation so you can read it or un-suppress the alert.
 - **Delete confirmation** — removing a jotbook prompts you with three choices: Keep File (remove the jotbook but leave the `.md` file on disk), Delete File (remove both), or Cancel.
 - **Timestamped entries** — each note is prepended with `### <timestamp>` and written to the file.
 - **Configurable date format** — pick from 4 presets (`yyyy-MM-dd HH:mm`, `yyyy-MM-dd HH:mm:ss`, `MMM d, yyyy h:mm a`, `EEE, MMM d 'at' h:mm a`) with a live preview in Settings.
-- **Append or prepend** — by default entries are appended to the end of the file (fast, incremental). Flip the "newest first" toggle in Settings to insert new entries right under the `# Jot Notes` header instead.
-- **Daily file rotation** — optional toggle in Settings to route notes into a new file per day. Jot prepends the active Jotbook's base filename to the date (e.g. `JotBook-2026-04-20.md` or `JotBook-Work-2026-04-20.md`). The date pattern is editable; the directory can follow your active Jotbook's folder or be pointed anywhere else.
+- **Append or prepend** — by default entries are appended to the end of the file (fast, incremental). Flip the "newest first" toggle in Settings to insert new entries right under the `# Jotbook Notes` header instead.
+- **Daily file rotation** — optional toggle in Settings to route notes into a new file per day. Jotbook prepends the active Jotbook's base filename to the date (e.g. `JotBook-2026-04-20.md` or `JotBook-Work-2026-04-20.md`). The date pattern is editable; the directory can follow your active Jotbook's folder or be pointed anywhere else.
 - **Owned by you** — no accounts, no telemetry, no network calls. The file is yours; sync it with iCloud/Dropbox/Git/whatever.
-- **Open in your editor** — the right-click menu's "Open Note File" item (or a per-jotbook hotkey you configure) opens the jotbook's `.md` in whatever app is set as the default for Markdown (Obsidian, Msty Studio, iA Writer, …). With daily rotation on, it opens today's file. The file is created with a `# Jot Notes` header if it doesn't exist yet.
+- **Open in your editor** — the right-click menu's "Open Note File" item (or a per-jotbook hotkey you configure) opens the jotbook's `.md` in whatever app is set as the default for Markdown (Obsidian, Msty Studio, iA Writer, …). With daily rotation on, it opens today's file. The file is created with a `# Jotbook Notes` header if it doesn't exist yet.
 
 ### Settings
 - **Jotbook management** — name, pick a file or folder, configure per-jotbook capture and open-file shortcuts. All shortcuts are blank by default; any recorded shortcut is automatically active (Clear resets it).
@@ -52,12 +52,12 @@ Jot lives in your menubar and lets you capture a quick thought without context-s
 
 ### macOS integration
 - **Runs as an accessory** — no dock icon, no app switcher clutter.
-- **Accessibility prompt** — on first launch, Jot asks for the permission needed to capture global keystrokes, with a direct link to the right Privacy pane.
-- **Right-click the menubar icon** for Open Jot · Open Note File · Show Preview · Settings… · Switch Jotbook (submenu, when you have more than one) · Quit Jot. Key equivalents are shown inline for shortcuts you've enabled.
+- **Accessibility prompt** — on first launch, Jotbook asks for the permission needed to capture global keystrokes, with a direct link to the right Privacy pane.
+- **Right-click the menubar icon** for Open Jotbook · Open Note File · Show Preview · Settings… · Switch Jotbook (submenu, when you have more than one) · Quit Jot. Key equivalents are shown inline for shortcuts you've enabled.
 
 ## Install & run
 
-Jot is built with SwiftUI + AppKit and targets macOS.
+Jotbook is built with SwiftUI + AppKit and targets macOS.
 
 1. Open `Jot.xcodeproj` in Xcode.
 2. Select the **Jot** scheme.
@@ -71,12 +71,12 @@ Jot is built with SwiftUI + AppKit and targets macOS.
 3. Press `⌘↩` to save → the note is appended to the active jotbook's file with a timestamp. The menubar icon flashes ✓.
 4. Press `Esc` to dismiss without saving.
 
-On first launch Jot creates a single "Notes" Jotbook pointing at `~/Documents/JotBook.md` (existing installs keep whatever file they were already using). Open Settings to rename it, add more Jotbooks, and assign whichever global capture/open-file shortcuts you like (none are assigned by default).
+On first launch Jotbook creates a single "Notes" Jotbook pointing at `~/Documents/JotBook.md` (existing installs keep whatever file they were already using). Open Settings to rename it, add more Jotbooks, and assign whichever global capture/open-file shortcuts you like (none are assigned by default).
 
 Your file looks like this:
 
 ```markdown
-# Jot Notes
+# Jotbook Notes
 
 ### 2026-04-19 14:32
 Remember to refactor the hotkey monitor to handle app activation edge cases.

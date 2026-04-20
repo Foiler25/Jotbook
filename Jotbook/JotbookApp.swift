@@ -384,7 +384,7 @@ struct NoteEditorView: View {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
     private var rightClickMenu: NSMenu!
@@ -397,7 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var escPressed = false
     private let editorState = NoteEditorState()
     private var settingsWindow: NSWindow?
-    private lazy var previewController = PreviewWindowController()
+    private var previewController: PreviewWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -469,8 +469,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         guard !trusted else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             let alert = NSAlert()
-            alert.messageText = "Jot needs Accessibility access"
-            alert.informativeText = "macOS requires Accessibility permission for the global keyboard shortcut (⌥N) to work. Open System Settings → Privacy & Security → Accessibility and enable Jot."
+            alert.messageText = "Jotbook needs Accessibility access"
+            alert.informativeText = "macOS requires Accessibility permission for the global keyboard shortcut (⌥N) to work. Open System Settings → Privacy & Security → Accessibility and enable Jotbook."
             alert.addButton(withTitle: "Open System Settings")
             alert.addButton(withTitle: "Later")
             if alert.runModal() == .alertFirstButtonReturn {
@@ -483,7 +483,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func installStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        let image = NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "Jot")
+        let image = NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "Jotbook")
         image?.isTemplate = true
         originalStatusImage = image
         if let button = statusItem.button {
@@ -498,18 +498,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.contentSize = NSSize(width: 320, height: 140)
         popover.delegate = self
-        popover.contentViewController = NSHostingController(
-            rootView: NoteEditorView(
-                state: editorState,
-                onOpenFile: { [weak self] in self?.openTargetFile() }
-            )
-        )
+        // contentViewController is assigned fresh on each showPopover() and
+        // cleared in popoverDidClose() so the SwiftUI view tree + NSTextView
+        // + its undo manager are released between popover sessions.
     }
 
     private func buildRightClickMenu() {
         let menu = NSMenu()
 
-        let open = NSMenuItem(title: "Open Jot", action: #selector(openFromMenu), keyEquivalent: "")
+        let open = NSMenuItem(title: "Open Jotbook", action: #selector(openFromMenu), keyEquivalent: "")
         open.target = self
         menu.addItem(open)
 
@@ -552,7 +549,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit Jot", action: #selector(quit), keyEquivalent: "")
+        let quitItem = NSMenuItem(title: "Quit Jotbook", action: #selector(quit), keyEquivalent: "")
         quitItem.target = self
         if UserDefaults.standard.bool(forKey: DefaultsKey.quitHotkeyEnabled) {
             applyHotkeyToMenuItem(Hotkey.load(.quit), item: quitItem)
@@ -596,14 +593,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Jot Settings"
+            window.title = "Jotbook Settings"
             window.contentView = NSHostingView(rootView: SettingsView())
             window.center()
             window.isReleasedWhenClosed = false
+            window.delegate = self
             settingsWindow = window
         }
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    // NSWindowDelegate — release the settings window and its SwiftUI hosting view
+    // when the user closes it, so next open starts fresh (and per-Jotbook row state
+    // doesn't accumulate across sessions).
+    func windowWillClose(_ notification: Notification) {
+        guard let closing = notification.object as? NSWindow else { return }
+        if closing === settingsWindow {
+            closing.contentView = nil
+            settingsWindow = nil
+        }
     }
 
     @objc private func quit() {
@@ -636,6 +645,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         editorState.originalEditableRecentText = editableText
 
         popover.contentSize = basePopoverSize()
+        popover.contentViewController = NSHostingController(
+            rootView: NoteEditorView(
+                state: editorState,
+                onOpenFile: { [weak self] in self?.openTargetFile() }
+            )
+        )
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate(ignoringOtherApps: true)
         installPopoverKeyMonitor()
@@ -756,6 +771,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         explicitlyDismissed = false
         escPressed = false
+
+        // Release the SwiftUI view tree, JotTextEditor's NSTextView (and its
+        // accumulated undo manager), and the NoteTextViewHolder. Next
+        // showPopover() installs a fresh contentViewController.
+        popover.contentViewController = nil
     }
 
     private func save() {
@@ -862,11 +882,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func togglePreviewWindow() {
-        if previewController.isVisible {
-            previewController.close()
-        } else {
-            previewController.show()
+        if let ctl = previewController, ctl.isVisible {
+            ctl.close()
+            return
         }
+        let ctl = previewController ?? makePreviewController()
+        previewController = ctl
+        ctl.show()
+    }
+
+    private func makePreviewController() -> PreviewWindowController {
+        let ctl = PreviewWindowController()
+        ctl.onClose = { [weak self] in
+            // Release the controller so ARC can tear down the WKWebView
+            // and the WebContent XPC process.
+            self?.previewController = nil
+        }
+        return ctl
     }
 
     @objc private func openTargetFile() {
@@ -928,9 +960,18 @@ enum NoteAppender {
 
         if UserDefaults.standard.bool(forKey: DefaultsKey.newestFirst) {
             var contents = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
-            let headerPattern = "# Jot Notes\n\n"
-            if let range = contents.range(of: headerPattern) {
-                contents.insert(contentsOf: entry, at: range.upperBound)
+            // Accept both the new and legacy headers so existing users' files still
+            // receive newest-first entries in the right place.
+            let headerCandidates = ["# Jotbook Notes\n\n", "# Jot Notes\n\n"]
+            var insertionPoint: String.Index?
+            for pattern in headerCandidates {
+                if let range = contents.range(of: pattern) {
+                    insertionPoint = range.upperBound
+                    break
+                }
+            }
+            if let idx = insertionPoint {
+                contents.insert(contentsOf: entry, at: idx)
             } else {
                 contents = entry + contents
             }
