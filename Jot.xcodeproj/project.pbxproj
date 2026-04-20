@@ -6,27 +6,8 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXContainerItemProxy section */
-		709C789C2F9572FD006958D2 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 709C78842F9572FB006958D2 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 709C788B2F9572FB006958D2;
-			remoteInfo = Jot;
-		};
-		709C78A62F9572FD006958D2 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 709C78842F9572FB006958D2 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 709C788B2F9572FB006958D2;
-			remoteInfo = Jot;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
 		709C788C2F9572FB006958D2 /* Jot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Jot.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		709C789B2F9572FD006958D2 /* JotTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JotTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		709C78A52F9572FD006958D2 /* JotUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JotUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,34 +16,10 @@
 			path = Jot;
 			sourceTree = "<group>";
 		};
-		709C789E2F9572FD006958D2 /* JotTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = JotTests;
-			sourceTree = "<group>";
-		};
-		709C78A82F9572FD006958D2 /* JotUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = JotUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		709C78892F9572FB006958D2 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		709C78982F9572FD006958D2 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		709C78A22F9572FD006958D2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -76,8 +33,6 @@
 			isa = PBXGroup;
 			children = (
 				709C788E2F9572FB006958D2 /* Jot */,
-				709C789E2F9572FD006958D2 /* JotTests */,
-				709C78A82F9572FD006958D2 /* JotUITests */,
 				709C788D2F9572FB006958D2 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -86,8 +41,6 @@
 			isa = PBXGroup;
 			children = (
 				709C788C2F9572FB006958D2 /* Jot.app */,
-				709C789B2F9572FD006958D2 /* JotTests.xctest */,
-				709C78A52F9572FD006958D2 /* JotUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -117,52 +70,6 @@
 			productReference = 709C788C2F9572FB006958D2 /* Jot.app */;
 			productType = "com.apple.product-type.application";
 		};
-		709C789A2F9572FD006958D2 /* JotTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 709C78B22F9572FD006958D2 /* Build configuration list for PBXNativeTarget "JotTests" */;
-			buildPhases = (
-				709C78972F9572FD006958D2 /* Sources */,
-				709C78982F9572FD006958D2 /* Frameworks */,
-				709C78992F9572FD006958D2 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				709C789D2F9572FD006958D2 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				709C789E2F9572FD006958D2 /* JotTests */,
-			);
-			name = JotTests;
-			packageProductDependencies = (
-			);
-			productName = JotTests;
-			productReference = 709C789B2F9572FD006958D2 /* JotTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		709C78A42F9572FD006958D2 /* JotUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 709C78B52F9572FD006958D2 /* Build configuration list for PBXNativeTarget "JotUITests" */;
-			buildPhases = (
-				709C78A12F9572FD006958D2 /* Sources */,
-				709C78A22F9572FD006958D2 /* Frameworks */,
-				709C78A32F9572FD006958D2 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				709C78A72F9572FD006958D2 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				709C78A82F9572FD006958D2 /* JotUITests */,
-			);
-			name = JotUITests;
-			packageProductDependencies = (
-			);
-			productName = JotUITests;
-			productReference = 709C78A52F9572FD006958D2 /* JotUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -175,14 +82,6 @@
 				TargetAttributes = {
 					709C788B2F9572FB006958D2 = {
 						CreatedOnToolsVersion = 26.4.1;
-					};
-					709C789A2F9572FD006958D2 = {
-						CreatedOnToolsVersion = 26.4.1;
-						TestTargetID = 709C788B2F9572FB006958D2;
-					};
-					709C78A42F9572FD006958D2 = {
-						CreatedOnToolsVersion = 26.4.1;
-						TestTargetID = 709C788B2F9572FB006958D2;
 					};
 				};
 			};
@@ -201,28 +100,12 @@
 			projectRoot = "";
 			targets = (
 				709C788B2F9572FB006958D2 /* Jot */,
-				709C789A2F9572FD006958D2 /* JotTests */,
-				709C78A42F9572FD006958D2 /* JotUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		709C788A2F9572FB006958D2 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		709C78992F9572FD006958D2 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		709C78A32F9572FD006958D2 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -239,34 +122,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		709C78972F9572FD006958D2 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		709C78A12F9572FD006958D2 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		709C789D2F9572FD006958D2 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 709C788B2F9572FB006958D2 /* Jot */;
-			targetProxy = 709C789C2F9572FD006958D2 /* PBXContainerItemProxy */;
-		};
-		709C78A72F9572FD006958D2 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 709C788B2F9572FB006958D2 /* Jot */;
-			targetProxy = 709C78A62F9572FD006958D2 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		709C78AD2F9572FD006958D2 /* Debug */ = {
@@ -323,7 +179,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.3;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -381,7 +237,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.3;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -398,11 +254,11 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9KD2H9487R;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -411,7 +267,6 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Loofa.Jot;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -430,11 +285,11 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9KD2H9487R;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -443,93 +298,12 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Loofa.Jot;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		709C78B32F9572FD006958D2 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9KD2H9487R;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.3;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Loofa.JotTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jot.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Jot";
-			};
-			name = Debug;
-		};
-		709C78B42F9572FD006958D2 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9KD2H9487R;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.3;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Loofa.JotTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jot.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Jot";
-			};
-			name = Release;
-		};
-		709C78B62F9572FD006958D2 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9KD2H9487R;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Loofa.JotUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = Jot;
-			};
-			name = Debug;
-		};
-		709C78B72F9572FD006958D2 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9KD2H9487R;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Loofa.JotUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = Jot;
 			};
 			name = Release;
 		};
@@ -550,24 +324,6 @@
 			buildConfigurations = (
 				709C78B02F9572FD006958D2 /* Debug */,
 				709C78B12F9572FD006958D2 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		709C78B22F9572FD006958D2 /* Build configuration list for PBXNativeTarget "JotTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				709C78B32F9572FD006958D2 /* Debug */,
-				709C78B42F9572FD006958D2 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		709C78B52F9572FD006958D2 /* Build configuration list for PBXNativeTarget "JotUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				709C78B62F9572FD006958D2 /* Debug */,
-				709C78B72F9572FD006958D2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
