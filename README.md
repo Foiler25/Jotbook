@@ -121,6 +121,18 @@ Jotbook is licensed under the [GNU General Public License v3.0](LICENSE).
 
 ---
 
+## Support
+
+Jotbook is free and always will be. If it's saved you time, made your day better, or helped you at work like it has for me, you can throw me a tip to say thanks at [Paypal](https://paypal.me/barbiebutt) — no pressure, truly appreciated either way. If you'd rather just say thanks without a payment, you can reach me at [@foiler25](https://twitter.com/foiler25) on Twitter.
+
+---
+
+## Feedback & contributions
+
+Have an idea to make Jotbook better, or run into a bug? Feel free to open an [issue](../../issues) or start a [discussion](../../discussions) on GitHub — suggestions and bug reports are always welcome.
+
+---
+
 <div align="center">
   <sub>Built with SwiftUI + AppKit • macOS menubar • no cloud, no telemetry</sub>
 </div>
