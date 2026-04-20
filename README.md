@@ -5,7 +5,7 @@
 # Jot
 
 **A lightweight menubar note-taker for macOS.**
-One hotkey, one popover, one markdown file.
+Any number of Jotbooks (notebooks), one popover per capture, plain markdown files on disk.
 
 </div>
 
@@ -13,33 +13,47 @@ One hotkey, one popover, one markdown file.
 
 ## What is Jot?
 
-Jot lives in your menubar and lets you capture a quick thought without context-switching. Hit a global shortcut from anywhere, type your note, press ⌘↩, and it's timestamped and appended to a markdown file of your choosing. That's it — no database, no cloud, no sync conflicts. Just a plain `.md` file you can open, grep, back up, or sync however you already handle text files.
+Jot lives in your menubar and lets you capture a quick thought without context-switching. Click the icon (or assign a per-jotbook hotkey), type your note, press ⌘↩, and it's timestamped and appended to the active jotbook's markdown file. Run as many Jotbooks as you want, each with its own file and optional dedicated shortcuts. No database, no cloud, no sync conflicts — just plain `.md` files you can open, grep, back up, or sync however you already handle text files.
 
 ## Features
 
 ### Capture
-- **Menubar popover** — click the ✎ icon (or use the hotkey) to open a compact editor.
-- **Global open shortcut** — `⌥N` by default, configurable from Settings. Works from any app.
+- **Menubar popover** — click the ✎ icon (or use a per-jotbook hotkey) to open a compact editor.
+- **Per-jotbook capture shortcuts** — each jotbook can define its own global hotkey. Pressing one makes that jotbook active and opens the popover in one step. Nothing is set by default for new Jotbooks — assign your own combo.
 - **`⌘↩` to save, `Esc` to dismiss** — never touch the mouse.
-- **Transient popover** — click outside and it closes without saving (for now — auto-save on close is on the roadmap below).
+- **Optional auto-save on close** — toggle in Settings. When on, clicking outside or otherwise dismissing the popover saves your text instead of discarding it. `Esc` still discards.
+- **Recent entries above the editor** — toggle in Settings to show the last 3–5 notes above the capture field. Read-only by default, or flip the "allow editing" toggle to fix a typo in an earlier note and have the change written back when the popover closes. `Esc` discards any pending edits.
+- **In-popover search (`⌘F`)** — from the popover, `⌘F` swaps in a search field; matching lines from the target file are listed with their timestamps. Click any result to open the file in your default editor. `Esc` returns to capture.
+- **Snippet bar** — an optional row of capsule buttons above the editor (default: `TODO:`, `Idea:`, `?:`). Tap one to insert the snippet at the cursor. Fully editable in Settings; disable the bar entirely if you don't want it.
+- **Markdown formatting bar** — an optional row of capsule buttons below the editor (Bold, Italic, code, link). Click one to wrap the selected text (or position the cursor between markers if nothing is selected). Also works on recent entries when editing is enabled.
+- **Markdown preview window** — optional separate window that renders the target file as styled HTML via `WKWebView`. Auto-refreshes on file change; optional global hotkey to toggle it from anywhere (`⇧⌥P` by default, off until you enable it).
 - **Save flash** — the menubar icon briefly turns into a ✓ so you know the write landed.
 
 ### Storage
-- **Plain markdown** — your notes live in a single `.md` file you pick (default: `~/Documents/JotNotes.md`).
-- **Timestamped entries** — each note is prepended with `### yyyy-MM-dd HH:mm` and appended to the end of the file.
+- **Plain markdown** — your notes live in `.md` files you pick (default: `~/Documents/JotBook.md`).
+- **Multiple Jotbooks** — manage any number of named Jotbooks, each with its own file path. Switch the active one from the right-click menu's "Switch Jotbook" submenu. Each jotbook can have its own dedicated capture and open-file shortcuts.
+- **Smart path defaults** — brand-new installs get `JotBook.md`; existing users keep whatever file they already had. New Jotbooks auto-name their file as `JotBook-{name}.md` and the path follows the name as you rename the Jotbook. You can pin a specific file by explicitly picking one from the Choose… dialog.
+- **Folder-or-file picker** — Choose… accepts either a folder (Jot auto-creates/auto-names the file from the jotbook's name) or a specific `.md` file (Jot uses that exact path and stops auto-renaming).
+- **Rename warning** — when renaming a jotbook with auto-named path would leave notes behind in the old file, Jot shows a confirmation alert after you click out of the name field, with a "Don't show again" checkbox. An "About rename behavior" link in Settings re-surfaces the explanation so you can read it or un-suppress the alert.
+- **Delete confirmation** — removing a jotbook prompts you with three choices: Keep File (remove the jotbook but leave the `.md` file on disk), Delete File (remove both), or Cancel.
+- **Timestamped entries** — each note is prepended with `### <timestamp>` and written to the file.
+- **Configurable date format** — pick from 4 presets (`yyyy-MM-dd HH:mm`, `yyyy-MM-dd HH:mm:ss`, `MMM d, yyyy h:mm a`, `EEE, MMM d 'at' h:mm a`) with a live preview in Settings.
+- **Append or prepend** — by default entries are appended to the end of the file (fast, incremental). Flip the "newest first" toggle in Settings to insert new entries right under the `# Jot Notes` header instead.
+- **Daily file rotation** — optional toggle in Settings to route notes into a new file per day. Jot prepends the active Jotbook's base filename to the date (e.g. `JotBook-2026-04-20.md` or `JotBook-Work-2026-04-20.md`). The date pattern is editable; the directory can follow your active Jotbook's folder or be pointed anywhere else.
 - **Owned by you** — no accounts, no telemetry, no network calls. The file is yours; sync it with iCloud/Dropbox/Git/whatever.
+- **Open in your editor** — the right-click menu's "Open Note File" item (or a per-jotbook hotkey you configure) opens the jotbook's `.md` in whatever app is set as the default for Markdown (Obsidian, Msty Studio, iA Writer, …). With daily rotation on, it opens today's file. The file is created with a `# Jot Notes` header if it doesn't exist yet.
 
 ### Settings
-- **Target file picker** — choose any `.md` or `.txt` file, or let Jot create one for you.
-- **Show in Finder** — jump to the target file from Settings.
-- **Configurable open shortcut** — click the recorder and press the key combo you want.
+- **Jotbook management** — name, pick a file or folder, configure per-jotbook capture and open-file shortcuts. All shortcuts are blank by default; any recorded shortcut is automatically active (Clear resets it).
+- **Show in Finder** — jump to each jotbook's file from its row.
 - **Optional global quit shortcut** — `⌥Q` by default, off until you enable it.
+- **Optional global preview shortcut** — `⇧⌥P` by default, off until you enable it.
 - **Launch at login** — uses `SMAppService`, survives macOS updates.
 
 ### macOS integration
 - **Runs as an accessory** — no dock icon, no app switcher clutter.
 - **Accessibility prompt** — on first launch, Jot asks for the permission needed to capture global keystrokes, with a direct link to the right Privacy pane.
-- **Right-click the menubar icon** for Open Jot · Settings… · Quit Jot (with key equivalents shown inline).
+- **Right-click the menubar icon** for Open Jot · Open Note File · Show Preview · Settings… · Switch Jotbook (submenu, when you have more than one) · Quit Jot. Key equivalents are shown inline for shortcuts you've enabled.
 
 ## Install & run
 
@@ -52,10 +66,12 @@ Jot is built with SwiftUI + AppKit and targets macOS.
 
 ## Using it
 
-1. Press `⌥N` (or click the menubar icon).
+1. Click the menubar icon (or press a capture hotkey you've set on a jotbook).
 2. Type your note.
-3. Press `⌘↩` to save → the note is appended to your target file with a timestamp. The menubar icon flashes ✓.
+3. Press `⌘↩` to save → the note is appended to the active jotbook's file with a timestamp. The menubar icon flashes ✓.
 4. Press `Esc` to dismiss without saving.
+
+On first launch Jot creates a single "Notes" Jotbook pointing at `~/Documents/JotBook.md` (existing installs keep whatever file they were already using). Open Settings to rename it, add more Jotbooks, and assign whichever global capture/open-file shortcuts you like (none are assigned by default).
 
 Your file looks like this:
 
@@ -77,34 +93,7 @@ Book idea: a noir set entirely inside a compiler.
 
 ## Roadmap
 
-Jot is intentionally small, but a richer set of features is planned. Each phase below ships independently; phases 1–8 are additive on the current single-file model, and phase 9 is a larger refactor that layers multiple notebooks on top.
-
-### Phase 1 — Open Note File (`⌥⌘N`)
-A dedicated shortcut and menu item to open the target `.md` in its default editor (Obsidian, Msty Studio, iA Writer, etc.), creating it if it doesn't exist yet.
-
-### Phase 2 — Date format & newest-first append
-Pick a timestamp format from a preset list (`yyyy-MM-dd HH:mm`, `MMM d, yyyy h:mm a`, `EEE, MMM d 'at' h:mm a`, …) with a live preview. Optional "newest first" toggle to insert new entries at the top of the file instead of appending.
-
-### Phase 3 — Auto-save on close
-Optionally persist whatever you typed when the popover is dismissed (click-outside, app switch), instead of discarding. `Esc` still discards.
-
-### Phase 4 — Daily file rotation
-Split notes across per-day files (e.g., `2026-04-19.md`) in a directory of your choice. Format is configurable, so per-hour or per-week layouts work too.
-
-### Phase 5 — Tag prefixes
-A row of one-click capsule buttons above the editor (`TODO:`, `Idea:`, `?:`…). Tap to insert at the cursor. Fully editable list in Settings.
-
-### Phase 6 — Recent entries in the popover
-Show the last 3–5 entries above the editor for quick context. Read-only by default, with an optional "allow editing" mode that writes changes back to the file on close.
-
-### Phase 7 — In-popover search (`⌘F`)
-Search your note file from inside the popover. Matching lines appear with their timestamps; click a result to open the file in your external editor.
-
-### Phase 8 — Markdown preview window
-A separate read-only window that renders your notes as styled HTML via `WKWebView`, with optional auto-refresh when the file changes on disk.
-
-### Phase 9 — Multiple notebooks
-Maintain several named targets (Work / Personal / Ideas), each with its own path and optional dedicated capture and open-file shortcuts. Switch the active notebook from the right-click menu; per-notebook hotkeys route captures to a specific file without switching. This is the largest change on the list because every earlier feature needs to resolve its path through the active notebook — so it's intentionally last.
+All originally-planned phases have shipped. 🎉 See the Features section above for what's currently in the app.
 
 ---
 
