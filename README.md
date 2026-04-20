@@ -64,8 +64,9 @@ Grab the latest `.dmg` from the [Releases](../../releases) page, open it, and dr
 The first launch needs a one-time extra step because the app isn't signed with an Apple Developer ID:
 
 1. Right-click `Jotbook.app` in `/Applications` → **Open**.
-2. Click **Open** again in the Gatekeeper dialog.
-3. Grant **Accessibility** access when prompted — required for global hotkeys.
+2. macOS will block the launch — open **System Settings → Privacy & Security**, scroll to the "*Jotbook* was blocked" notice, and click **Open Anyway**. Authenticate with Touch ID or your password.
+3. Click **Open** in the final confirmation dialog.
+4. Grant **Accessibility** access when prompted — required for global hotkeys.
 
 After that, launch it like any other app.
 
