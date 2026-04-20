@@ -61,3 +61,5 @@ build-dmg.sh
 release-github.sh
 Jotbook-*.dmg
 RELEASE_NOTES.md
+.release-metadata
+.release-notes-draft.md
