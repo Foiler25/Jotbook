@@ -55,3 +55,9 @@ plans/
 *.swo
 *~
 Thumbs.db
+
+# Release tooling (local, per-machine)
+build-dmg.sh
+release-github.sh
+Jotbook-*.dmg
+RELEASE_NOTES.md

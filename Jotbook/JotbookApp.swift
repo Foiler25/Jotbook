@@ -1,3 +1,19 @@
+// Jotbook — a lightweight macOS menubar note-taker.
+// Copyright (C) 2026 Brandon Villar
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 import SwiftUI
 import AppKit
 import ApplicationServices
@@ -159,21 +175,33 @@ struct NoteEditorView: View {
         var h: CGFloat = 140
         if showSnippetBar && !snippets.isEmpty { h += 35 }
         if showRecent && !state.recent.isEmpty { h += 120 }
-        if showFormattingBar { h += 30 }
+        if showFormattingBar { h += 60 }
         return h
     }
 
     private var formattingBar: some View {
-        HStack(spacing: 6) {
-            formatButton(label: "B", bold: true) { wrapSelection(left: "**", right: "**") }
-            formatButton(label: "I", italic: true) { wrapSelection(left: "*", right: "*") }
-            formatButton(label: "<>") { wrapSelection(left: "`", right: "`") }
-            formatButton(systemImage: "link") { insertLink() }
-            Spacer()
+        VStack(spacing: 4) {
+            HStack(spacing: 6) {
+                formatButton(label: "B", bold: true) { wrapSelection(left: "**", right: "**") }
+                formatButton(label: "I", italic: true) { wrapSelection(left: "*", right: "*") }
+                formatButton(label: "S", strikethrough: true) { wrapSelection(left: "~~", right: "~~") }
+                formatButton(label: "<>") { wrapSelection(left: "`", right: "`") }
+                formatButton(systemImage: "link") { insertLink() }
+                Spacer()
+            }
+            HStack(spacing: 6) {
+                formatButton(label: "H1") { insertLinePrefix("# ") }
+                formatButton(label: "H2") { insertLinePrefix("## ") }
+                formatButton(label: "H3") { insertLinePrefix("### ") }
+                formatButton(label: "•") { insertLinePrefix("- ") }
+                formatButton(label: "1.") { insertLinePrefix("1. ") }
+                formatButton(label: ">") { insertLinePrefix("> ") }
+                Spacer()
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .frame(height: 30)
+        .frame(height: 60)
     }
 
     @ViewBuilder
@@ -181,6 +209,7 @@ struct NoteEditorView: View {
                               systemImage: String? = nil,
                               bold: Bool = false,
                               italic: Bool = false,
+                              strikethrough: Bool = false,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Group {
@@ -191,6 +220,7 @@ struct NoteEditorView: View {
                     Text(label)
                         .font(.system(size: 11, weight: bold ? .bold : .medium))
                         .italic(italic)
+                        .strikethrough(strikethrough)
                 }
             }
             .frame(minWidth: 14)
@@ -380,6 +410,27 @@ struct NoteEditorView: View {
         let urlStart = range.location + 1 + selectionLen + 2  // after "]("
         let urlLen = 3  // "url"
         tv.setSelectedRange(NSRange(location: urlStart, length: urlLen))
+        tv.window?.makeFirstResponder(tv)
+    }
+
+    private func insertLinePrefix(_ prefix: String) {
+        guard let tv = activeTextView() else { return }
+        let range = tv.selectedRange()
+        let ns = tv.string as NSString
+        var lineStart = range.location
+        while lineStart > 0 && ns.character(at: lineStart - 1) != 0x0A {
+            lineStart -= 1
+        }
+        let prefixLen = (prefix as NSString).length
+        if ns.length - lineStart >= prefixLen {
+            let existing = ns.substring(with: NSRange(location: lineStart, length: prefixLen))
+            if existing == prefix {
+                tv.window?.makeFirstResponder(tv)
+                return
+            }
+        }
+        tv.insertText(prefix, replacementRange: NSRange(location: lineStart, length: 0))
+        tv.setSelectedRange(NSRange(location: range.location + prefixLen, length: range.length))
         tv.window?.makeFirstResponder(tv)
     }
 }
@@ -869,7 +920,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if !FileManager.default.fileExists(atPath: url.path) {
             let parent = url.deletingLastPathComponent()
             try? FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
-            try? Data("# Jot Notes\n\n".utf8).write(to: url)
+            try? Data("# Jotbook Notes\n\n".utf8).write(to: url)
         }
         NSWorkspace.shared.open(url)
     }
@@ -907,7 +958,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if !FileManager.default.fileExists(atPath: url.path) {
             let parent = url.deletingLastPathComponent()
             try? FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
-            try? Data("# Jot Notes\n\n".utf8).write(to: url)
+            try? Data("# Jotbook Notes\n\n".utf8).write(to: url)
         }
         NSWorkspace.shared.open(url)
     }
@@ -954,7 +1005,7 @@ enum NoteAppender {
         if !FileManager.default.fileExists(atPath: url.path) {
             let parent = url.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
-            try Data("# Jot Notes\n\n".utf8).write(to: url)
+            try Data("# Jotbook Notes\n\n".utf8).write(to: url)
         }
         let entry = "\n### \(stamp())\n\(text)\n"
 

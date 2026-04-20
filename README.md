@@ -53,16 +53,33 @@ Jotbook lives in your menubar and lets you capture a quick thought without conte
 ### macOS integration
 - **Runs as an accessory** — no dock icon, no app switcher clutter.
 - **Accessibility prompt** — on first launch, Jotbook asks for the permission needed to capture global keystrokes, with a direct link to the right Privacy pane.
-- **Right-click the menubar icon** for Open Jotbook · Open Note File · Show Preview · Settings… · Switch Jotbook (submenu, when you have more than one) · Quit Jot. Key equivalents are shown inline for shortcuts you've enabled.
+- **Right-click the menubar icon** for Open Jotbook · Open Note File · Show Preview · Settings… · Switch Jotbook (submenu, when you have more than one) · Quit Jotbook. Key equivalents are shown inline for shortcuts you've enabled.
 
-## Install & run
+## Install
 
-Jotbook is built with SwiftUI + AppKit and targets macOS.
+### From a release
 
-1. Open `Jot.xcodeproj` in Xcode.
-2. Select the **Jot** scheme.
-3. Build and run (`⌘R`).
-4. On first launch, grant **Accessibility** access when prompted — this is required for the global hotkey.
+Grab the latest `.dmg` from the [Releases](../../releases) page, open it, and drag Jotbook into `/Applications`.
+
+The first launch needs a one-time extra step because the app isn't signed with an Apple Developer ID:
+
+1. Right-click `Jotbook.app` in `/Applications` → **Open**.
+2. Click **Open** again in the Gatekeeper dialog.
+3. Grant **Accessibility** access when prompted — required for global hotkeys.
+
+After that, launch it like any other app.
+
+### Build from source
+
+Jotbook is built with SwiftUI + AppKit and targets macOS 13+.
+
+1. Clone the repo.
+2. Open `Jotbook.xcodeproj` in Xcode.
+3. Select the **Jotbook** scheme.
+4. Build and run (`⌘R`).
+5. On first launch, grant **Accessibility** access when prompted.
+
+Because Jotbook is licensed under GPLv3 (see [LICENSE](LICENSE)), you're free to modify and redistribute your own builds — as long as the source for those builds is made available under the same license.
 
 ## Using it
 
@@ -94,6 +111,12 @@ Book idea: a noir set entirely inside a compiler.
 ## Roadmap
 
 All originally-planned phases have shipped. 🎉 See the Features section above for what's currently in the app.
+
+---
+
+## License
+
+Jotbook is licensed under the [GNU General Public License v3.0](LICENSE).
 
 ---
 
