@@ -591,7 +591,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc private func showJotConfig() {
         if settingsWindow == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 860, height: 720),
+                contentRect: NSRect(x: 0, y: 0, width: 1120, height: 820),
                 styleMask: [.titled, .closable, .miniaturizable],
                 backing: .buffered,
                 defer: false
@@ -985,14 +985,7 @@ func resolvedTargetPath(for date: Date = Date()) -> String {
     let staticURL = URL(fileURLWithPath: (staticPath as NSString).expandingTildeInPath)
     let baseName = staticURL.deletingPathExtension().lastPathComponent
     let filename = "\(baseName)-\(dateStr).md"
-
-    let dirOverride = defaults.string(forKey: DefaultsKey.dailyRotationDirectory) ?? ""
-    let directory: String
-    if !dirOverride.isEmpty {
-        directory = (dirOverride as NSString).expandingTildeInPath
-    } else {
-        directory = staticURL.deletingLastPathComponent().path
-    }
+    let directory = staticURL.deletingLastPathComponent().path
     return (directory as NSString).appendingPathComponent(filename)
 }
 

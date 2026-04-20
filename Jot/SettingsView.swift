@@ -236,7 +236,6 @@ struct SettingsView: View {
     @State private var autoSaveOnClose: Bool = UserDefaults.standard.bool(forKey: DefaultsKey.autoSaveOnClose)
     @State private var dailyRotation: Bool = UserDefaults.standard.bool(forKey: DefaultsKey.dailyRotation)
     @AppStorage(DefaultsKey.dailyRotationFormat) private var dailyRotationFormat: String = "yyyy-MM-dd"
-    @AppStorage(DefaultsKey.dailyRotationDirectory) private var dailyRotationDirectory: String = ""
     @AppStorage(DefaultsKey.showPrefixBar) private var showPrefixBar: Bool = true
     @State private var tagPrefixes: [String] = TagPrefixDefaults.load()
     @AppStorage(DefaultsKey.showRecentInPopover) private var showRecentInPopover: Bool = false
@@ -254,12 +253,15 @@ struct SettingsView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             leftColumn
-                .frame(width: 420)
+                .frame(width: 380)
+            Divider()
+            middleColumn
+                .frame(width: 360)
             Divider()
             rightColumn
-                .frame(width: 420)
+                .frame(width: 360)
         }
-        .frame(minHeight: 720)
+        .frame(minHeight: 820)
         .onReceive(NotificationCenter.default.publisher(for: .jotJotbooksChanged)) { _ in
             jotbooks = Jotbooks.all()
             if let active = Jotbooks.active() {
@@ -300,7 +302,7 @@ struct SettingsView: View {
     private var leftColumn: some View {
         Form {
             Section("Jotbooks") {
-                Picker("Active Jotbook", selection: $activeJotbookID) {
+                Picker("Active", selection: $activeJotbookID) {
                     ForEach(jotbooks) { nb in
                         Text(nb.name.isEmpty ? "(unnamed)" : nb.name).tag(nb.id.uuidString)
                     }
@@ -323,6 +325,12 @@ struct SettingsView: View {
                         .font(.caption)
                 }
             }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var middleColumn: some View {
+        Form {
             Section("Note format") {
                 Picker("Date format", selection: $dateFormat) {
                     ForEach(DateFormatPreset.allCases) { preset in
@@ -332,26 +340,16 @@ struct SettingsView: View {
                 Text("Preview: \(formattedNow)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
-            Section {
                 Toggle("Insert new entries at top of file", isOn: $newestFirst)
                     .onChange(of: newestFirst) { newValue in
                         UserDefaults.standard.set(newValue, forKey: DefaultsKey.newestFirst)
                     }
-                Text("Top-of-file insert rewrites the whole file; the default end-append is incremental.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             Section("Editor behavior") {
                 Toggle("Auto-save when the popover closes", isOn: $autoSaveOnClose)
                     .onChange(of: autoSaveOnClose) { newValue in
                         UserDefaults.standard.set(newValue, forKey: DefaultsKey.autoSaveOnClose)
                     }
-            }
-            Section {
-                Text("When on, dismissing without ⌘↩ still saves your text. Esc still discards.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             Section("Daily file rotation") {
                 Toggle("Use a new file per day", isOn: $dailyRotation)
@@ -361,66 +359,32 @@ struct SettingsView: View {
             }
             Section {
                 TextField("Date pattern", text: $dailyRotationFormat)
-                HStack {
-                    Text(dailyDirectoryDisplay)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Button("Choose directory…") { chooseDailyDirectory() }
-                    if !dailyRotationDirectory.isEmpty {
-                        Button("Reset") { dailyRotationDirectory = "" }
-                    }
-                }
                 Text("Today: \(dailyRotationPreview)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Files are written next to the active Jotbook's file.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             .disabled(!dailyRotation)
             .opacity(dailyRotation ? 1 : 0.5)
+            Section("Popover") {
+                Toggle("Show recent entries", isOn: $showRecentInPopover)
+            }
+            Section {
+                Stepper("Recent count: \(popoverRecentCount)", value: $popoverRecentCount, in: 1...5)
+                Toggle("Allow editing recent entries", isOn: $popoverRecentEditable)
+            }
+            .disabled(!showRecentInPopover)
+            .opacity(showRecentInPopover ? 1 : 0.5)
         }
         .formStyle(.grouped)
     }
 
     private var rightColumn: some View {
         Form {
-            Section("Quit shortcut") {
-                Toggle("Enable global quit shortcut", isOn: $quitHotkeyEnabled)
-                    .onChange(of: quitHotkeyEnabled) { newValue in
-                        UserDefaults.standard.set(newValue, forKey: DefaultsKey.quitHotkeyEnabled)
-                        NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
-                    }
-            }
-            Section {
-                HStack {
-                    ShortcutRecorderView(hotkey: $quitHotkey) { new in
-                        new.save(.quit)
-                        NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
-                    }
-                    .frame(width: 160, height: 24)
-                    Text("Quits Jot from anywhere when enabled.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            Section("Popover") {
-                Toggle("Show recent entries in popover", isOn: $showRecentInPopover)
-            }
-            Section {
-                Stepper("Recent count: \(popoverRecentCount)",
-                        value: $popoverRecentCount, in: 1...5)
-                Toggle("Allow editing recent entries", isOn: $popoverRecentEditable)
-                Text("Edits are saved back to the file when the popover closes.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .disabled(!showRecentInPopover)
-            .opacity(showRecentInPopover ? 1 : 0.5)
             Section("Formatting bar") {
                 Toggle("Show markdown formatting bar below the editor", isOn: $showFormattingBar)
-                Text("Buttons for bold, italic, code, and link. Works on the main editor and on recent entries when editing is enabled.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             Section("Snippets") {
                 Toggle("Show snippet bar in popover", isOn: $showPrefixBar)
@@ -448,9 +412,6 @@ struct SettingsView: View {
                     tagPrefixes.append("")
                     TagPrefixDefaults.save(tagPrefixes)
                 }
-                Text("Clicking a snippet inserts it at the cursor in the popover.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             Section("Preview window") {
                 Toggle("Enable global preview shortcut", isOn: $previewHotkeyEnabled)
@@ -466,14 +427,32 @@ struct SettingsView: View {
                         NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
                     }
                     .frame(width: 160, height: 24)
-                    .disabled(!previewHotkeyEnabled)
-                    .opacity(previewHotkeyEnabled ? 1 : 0.4)
                     Text("Toggles the markdown preview window.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Toggle("Auto-refresh preview when the file changes", isOn: $previewAutoRefresh)
+            }
+            Section("Quit shortcut") {
+                Toggle("Enable global quit shortcut", isOn: $quitHotkeyEnabled)
+                    .onChange(of: quitHotkeyEnabled) { newValue in
+                        UserDefaults.standard.set(newValue, forKey: DefaultsKey.quitHotkeyEnabled)
+                        NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
+                    }
+            }
+            Section {
+                HStack {
+                    ShortcutRecorderView(hotkey: $quitHotkey) { new in
+                        new.save(.quit)
+                        NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
+                    }
+                    .frame(width: 160, height: 24)
+                    Text("Quits Jot from anywhere when enabled.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             Section("Startup") {
                 Toggle("Launch at login", isOn: Binding(
@@ -483,9 +462,6 @@ struct SettingsView: View {
                 if let e = launchError {
                     Text(e).font(.caption).foregroundStyle(.red)
                 }
-                Text("Jot will open automatically when you log in. macOS may ask you to approve this in System Settings → Login Items.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -502,16 +478,7 @@ struct SettingsView: View {
         return f.string(from: Date())
     }
 
-    private var dailyDirectoryDisplay: String {
-        if dailyRotationDirectory.isEmpty {
-            let parent = URL(fileURLWithPath: (activeJotbookPath as NSString).expandingTildeInPath)
-                .deletingLastPathComponent().path
-            return (parent as NSString).abbreviatingWithTildeInPath + "  (default, follows active Jotbook)"
-        }
-        return (dailyRotationDirectory as NSString).abbreviatingWithTildeInPath
-    }
-
-    private var dailyRotationPreview: String {
+private var dailyRotationPreview: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = dailyRotationFormat.isEmpty ? "yyyy-MM-dd" : dailyRotationFormat
@@ -520,18 +487,7 @@ struct SettingsView: View {
         return "\(base)-\(f.string(from: Date())).md"
     }
 
-    private func chooseDailyDirectory() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.canCreateDirectories = true
-        if panel.runModal() == .OK, let url = panel.url {
-            dailyRotationDirectory = url.path
-        }
-    }
-
-    private func persistJotbooks() {
+private func persistJotbooks() {
         Jotbooks.save(jotbooks)
     }
 
@@ -590,15 +546,6 @@ struct SettingsView: View {
                         updatePathIfAutoTracking(newName: newName, binding: binding)
                         persistJotbooks()
                     }
-                if isActive {
-                    Text("active")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.15))
-                        .clipShape(Capsule())
-                }
                 Button { deleteByID(nbID) } label: {
                     Image(systemName: "minus.circle")
                 }
@@ -621,7 +568,7 @@ struct SettingsView: View {
                 ShortcutRecorderView(hotkey: binding.captureHotkey) { _ in
                     persistJotbooks()
                 }
-                .frame(width: 140, height: 22)
+                .frame(width: 130, height: 22)
                 if !binding.wrappedValue.captureHotkey.isEmpty {
                     Button("Clear") {
                         binding.wrappedValue.captureHotkey = .empty
@@ -640,7 +587,7 @@ struct SettingsView: View {
                 ShortcutRecorderView(hotkey: binding.openFileHotkey) { _ in
                     persistJotbooks()
                 }
-                .frame(width: 140, height: 22)
+                .frame(width: 130, height: 22)
                 if !binding.wrappedValue.openFileHotkey.isEmpty {
                     Button("Clear") {
                         binding.wrappedValue.openFileHotkey = .empty
