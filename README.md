@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Jot/Assets.xcassets/AppIcon.appiconset/icon_256.png" alt="JotBook" width="160" height="160" />
+<img src="Jotbook/Assets.xcassets/AppIcon.appiconset/icon_256.png" alt="JotBook" width="160" height="160" />
 
 # JotBook
 
