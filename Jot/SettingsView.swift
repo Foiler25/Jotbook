@@ -320,9 +320,13 @@ struct SettingsView: View {
                 HStack {
                     Button("Add Jotbook") { addJotbook() }
                     Spacer()
-                    Button("About rename behavior") { showOrphanAlert() }
-                        .buttonStyle(.link)
-                        .font(.caption)
+                    Button {
+                        showOrphanAlert()
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .help("About rename behavior")
                 }
             }
         }
@@ -344,8 +348,6 @@ struct SettingsView: View {
                     .onChange(of: newestFirst) { newValue in
                         UserDefaults.standard.set(newValue, forKey: DefaultsKey.newestFirst)
                     }
-            }
-            Section("Editor behavior") {
                 Toggle("Auto-save when the popover closes", isOn: $autoSaveOnClose)
                     .onChange(of: autoSaveOnClose) { newValue in
                         UserDefaults.standard.set(newValue, forKey: DefaultsKey.autoSaveOnClose)
@@ -357,32 +359,62 @@ struct SettingsView: View {
                         UserDefaults.standard.set(newValue, forKey: DefaultsKey.dailyRotation)
                     }
             }
+            if dailyRotation {
+                Section {
+                    TextField("Date pattern", text: $dailyRotationFormat)
+                    Text("Today: \(dailyRotationPreview)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Files are written next to the active Jotbook's file.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section("Preview window") {
+                Toggle("Enable global preview shortcut", isOn: $previewHotkeyEnabled)
+                    .onChange(of: previewHotkeyEnabled) { newValue in
+                        UserDefaults.standard.set(newValue, forKey: DefaultsKey.previewHotkeyEnabled)
+                        NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
+                    }
+            }
             Section {
-                TextField("Date pattern", text: $dailyRotationFormat)
-                Text("Today: \(dailyRotationPreview)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Files are written next to the active Jotbook's file.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    ShortcutRecorderView(hotkey: $previewHotkey) { new in
+                        new.save(.preview)
+                        NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
+                    }
+                    .frame(width: 160, height: 24)
+                    Text("Toggles the markdown preview window.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Toggle("Auto-refresh preview when the file changes", isOn: $previewAutoRefresh)
             }
-            .disabled(!dailyRotation)
-            .opacity(dailyRotation ? 1 : 0.5)
-            Section("Popover") {
-                Toggle("Show recent entries", isOn: $showRecentInPopover)
+            Section("Startup") {
+                Toggle("Launch at login", isOn: Binding(
+                    get: { launchAtLogin },
+                    set: { toggleLaunchAtLogin($0) }
+                ))
+                if let e = launchError {
+                    Text(e).font(.caption).foregroundStyle(.red)
+                }
             }
-            Section {
-                Stepper("Recent count: \(popoverRecentCount)", value: $popoverRecentCount, in: 1...5)
-                Toggle("Allow editing recent entries", isOn: $popoverRecentEditable)
-            }
-            .disabled(!showRecentInPopover)
-            .opacity(showRecentInPopover ? 1 : 0.5)
         }
         .formStyle(.grouped)
     }
 
     private var rightColumn: some View {
         Form {
+            Section("Popover") {
+                Toggle("Show recent entries", isOn: $showRecentInPopover)
+            }
+            if showRecentInPopover {
+                Section {
+                    Stepper("Recent count: \(popoverRecentCount)", value: $popoverRecentCount, in: 1...5)
+                    Toggle("Allow editing recent entries", isOn: $popoverRecentEditable)
+                }
+            }
             Section("Formatting bar") {
                 Toggle("Show markdown formatting bar below the editor", isOn: $showFormattingBar)
             }
@@ -413,27 +445,6 @@ struct SettingsView: View {
                     TagPrefixDefaults.save(tagPrefixes)
                 }
             }
-            Section("Preview window") {
-                Toggle("Enable global preview shortcut", isOn: $previewHotkeyEnabled)
-                    .onChange(of: previewHotkeyEnabled) { newValue in
-                        UserDefaults.standard.set(newValue, forKey: DefaultsKey.previewHotkeyEnabled)
-                        NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
-                    }
-            }
-            Section {
-                HStack {
-                    ShortcutRecorderView(hotkey: $previewHotkey) { new in
-                        new.save(.preview)
-                        NotificationCenter.default.post(name: .jotHotkeyChanged, object: nil)
-                    }
-                    .frame(width: 160, height: 24)
-                    Text("Toggles the markdown preview window.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                Toggle("Auto-refresh preview when the file changes", isOn: $previewAutoRefresh)
-            }
             Section("Quit shortcut") {
                 Toggle("Enable global quit shortcut", isOn: $quitHotkeyEnabled)
                     .onChange(of: quitHotkeyEnabled) { newValue in
@@ -452,15 +463,6 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            Section("Startup") {
-                Toggle("Launch at login", isOn: Binding(
-                    get: { launchAtLogin },
-                    set: { toggleLaunchAtLogin($0) }
-                ))
-                if let e = launchError {
-                    Text(e).font(.caption).foregroundStyle(.red)
                 }
             }
         }
