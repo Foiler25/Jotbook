@@ -155,6 +155,8 @@ enum TagPrefixDefaults {
 }
 
 extension Notification.Name {
+    static let jotShortcutRecordingStarted = Notification.Name("JotShortcutRecordingStarted")
+    static let jotShortcutRecordingEnded = Notification.Name("JotShortcutRecordingEnded")
     static let jotTagPrefixesChanged = Notification.Name("JotTagPrefixesChanged")
 }
 
@@ -763,11 +765,13 @@ final class RecorderNSView: NSView {
 
     override func becomeFirstResponder() -> Bool {
         isRecording = true
+        NotificationCenter.default.post(name: .jotShortcutRecordingStarted, object: nil)
         return super.becomeFirstResponder()
     }
 
     override func resignFirstResponder() -> Bool {
         isRecording = false
+        NotificationCenter.default.post(name: .jotShortcutRecordingEnded, object: nil)
         return super.resignFirstResponder()
     }
 

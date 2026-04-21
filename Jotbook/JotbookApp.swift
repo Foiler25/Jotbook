@@ -16,7 +16,7 @@
 
 import SwiftUI
 import AppKit
-import ApplicationServices
+import Carbon.HIToolbox
 import Combine
 import ServiceManagement
 
@@ -444,13 +444,19 @@ final class CapturePanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+private struct RegisteredHotkey {
+    var ref: EventHotKeyRef
+    var action: () -> Void
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem!
     private var captureWindow: CapturePanel?
     private var clickOutsideMonitor: Any?
     private var rightClickMenu: NSMenu!
-    private var globalHotkeyMonitor: Any?
-    private var localHotkeyMonitor: Any?
+    private var carbonHotkeys: [UInt32: RegisteredHotkey] = [:]
+    private var carbonHandlerRef: EventHandlerRef?
+    private var nextHotkeyID: UInt32 = 1
     private var popoverKeyMonitor: Any?
     private var originalStatusImage: NSImage?
     private var saveFlashToken = 0
@@ -468,8 +474,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         installMainMenu()
         installStatusItem()
         buildRightClickMenu()
-        registerHotkeyMonitors()
-        promptForAccessibilityIfNeeded()
+        registerAllHotkeys()
 
         NotificationCenter.default.addObserver(
             self,
@@ -489,15 +494,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             name: .jotJotbooksChanged,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(shortcutRecordingStarted),
+            name: .jotShortcutRecordingStarted,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(shortcutRecordingEnded),
+            name: .jotShortcutRecordingEnded,
+            object: nil
+        )
     }
 
     @objc private func jotbooksChanged() {
-        registerHotkeyMonitors()
+        registerAllHotkeys()
         buildRightClickMenu()
     }
 
     @objc private func appBecameActive() {
-        registerHotkeyMonitors()
+        // Carbon hotkeys survive activation changes; no re-registration needed.
     }
 
     /// The rotation format used to embed `'JotNotes-'` literally in the pattern; now it's the
@@ -521,25 +538,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             defaults[DefaultsKey.tagPrefixes] = data
         }
         UserDefaults.standard.register(defaults: defaults)
-    }
-
-    private func promptForAccessibilityIfNeeded() {
-        let trusted = AXIsProcessTrustedWithOptions(
-            [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        )
-        guard !trusted else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let alert = NSAlert()
-            alert.messageText = "Jotbook needs Accessibility access"
-            alert.informativeText = "macOS requires Accessibility permission for the global keyboard shortcut (⌥N) to work. Open System Settings → Privacy & Security → Accessibility and enable Jotbook."
-            alert.addButton(withTitle: "Open System Settings")
-            alert.addButton(withTitle: "Later")
-            if alert.runModal() == .alertFirstButtonReturn {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                    NSWorkspace.shared.open(url)
-                }
-            }
-        }
     }
 
     private func installStatusItem() {
@@ -748,16 +746,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let panel = captureWindow ?? makeCapturePanel()
         captureWindow = panel
 
+        let size = basePopoverSize()
+        let container = NSView(frame: NSRect(origin: .zero, size: size))
+        container.wantsLayer = true
+        container.layer?.cornerRadius = 10
+        container.layer?.masksToBounds = true
+        container.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+
         let host = NSHostingView(
             rootView: NoteEditorView(
                 state: editorState,
                 onOpenFile: { [weak self] in self?.openTargetFile() }
             )
         )
-        host.translatesAutoresizingMaskIntoConstraints = true
-        panel.contentView = host
+        host.frame = container.bounds
+        host.autoresizingMask = [.width, .height]
+        container.addSubview(host)
+        panel.contentView = container
 
-        positionCapturePanel(panel, size: basePopoverSize(), anchor: button, in: buttonWindow)
+        positionCapturePanel(panel, size: size, anchor: button, in: buttonWindow)
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         installPopoverKeyMonitor()
@@ -765,17 +772,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func makeCapturePanel() -> CapturePanel {
+        // Borderless so macOS doesn't reserve a titlebar strip at the top of
+        // the panel. Rounded corners + background are drawn by the content
+        // view (see showPopover); shadow is still rendered by the window.
         let panel = CapturePanel(
             contentRect: NSRect(x: 0, y: 0, width: 320, height: 140),
-            styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
-        panel.standardWindowButton(.closeButton)?.isHidden = true
-        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        panel.standardWindowButton(.zoomButton)?.isHidden = true
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
         panel.isMovableByWindowBackground = false
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
@@ -844,7 +851,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         var height: CGFloat = 140
         if hasBar { height += 35 }
         if hasRecent { height += 120 }
-        if showFormatting { height += 30 }
+        if showFormatting { height += 60 }
         return NSSize(width: 320, height: height)
     }
 
@@ -983,23 +990,86 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    private func registerHotkeyMonitors() {
-        removeHotkeyMonitors()
-        let bindings = currentBindings()
-        globalHotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return }
-            if let action = self.matchedAction(for: event, in: bindings) {
-                DispatchQueue.main.async { action() }
+    // System-wide hotkeys use Carbon's RegisterEventHotKey. Unlike
+    // NSEvent.addGlobalMonitorForEvents, this consumes the key event (so ⌥N
+    // no longer types `˜` into whichever text field is focused) and does not
+    // require Accessibility permission.
+    private func registerAllHotkeys() {
+        unregisterAllHotkeys()
+        installCarbonHandlerIfNeeded()
+        for (hk, action) in currentBindings() {
+            var ref: EventHotKeyRef?
+            let id = nextHotkeyID
+            let hotKeyID = EventHotKeyID(signature: OSType(0x4A4F5442), id: id) // 'JOTB'
+            let status = RegisterEventHotKey(
+                UInt32(hk.keyCode),
+                nsModifiersToCarbon(hk.modifiers),
+                hotKeyID,
+                GetApplicationEventTarget(),
+                0,
+                &ref
+            )
+            if status == noErr, let ref {
+                carbonHotkeys[id] = RegisteredHotkey(ref: ref, action: action)
+                nextHotkeyID &+= 1
+            } else {
+                NSLog("Jotbook: RegisterEventHotKey failed (status=\(status)) for keyCode=\(hk.keyCode) modifiers=\(hk.modifiers) — likely already claimed by another app.")
             }
         }
-        localHotkeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return event }
-            if let action = self.matchedAction(for: event, in: bindings) {
-                action()
-                return nil
-            }
-            return event
+    }
+
+    private func unregisterAllHotkeys() {
+        for (_, registered) in carbonHotkeys {
+            UnregisterEventHotKey(registered.ref)
         }
+        carbonHotkeys.removeAll()
+    }
+
+    private func installCarbonHandlerIfNeeded() {
+        guard carbonHandlerRef == nil else { return }
+        var spec = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: UInt32(kEventHotKeyPressed)
+        )
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+        let handler: @convention(c) (EventHandlerCallRef?, EventRef?, UnsafeMutableRawPointer?) -> OSStatus = { _, event, userData in
+            guard let event, let userData else { return OSStatus(eventNotHandledErr) }
+            var hotKeyID = EventHotKeyID()
+            let status = GetEventParameter(
+                event,
+                EventParamName(kEventParamDirectObject),
+                EventParamType(typeEventHotKeyID),
+                nil,
+                MemoryLayout<EventHotKeyID>.size,
+                nil,
+                &hotKeyID
+            )
+            guard status == noErr else { return status }
+            let delegate = Unmanaged<AppDelegate>.fromOpaque(userData).takeUnretainedValue()
+            let id = hotKeyID.id
+            DispatchQueue.main.async {
+                delegate.carbonHotkeys[id]?.action()
+            }
+            return noErr
+        }
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            handler,
+            1,
+            &spec,
+            selfPtr,
+            &carbonHandlerRef
+        )
+    }
+
+    private func nsModifiersToCarbon(_ raw: UInt) -> UInt32 {
+        let flags = NSEvent.ModifierFlags(rawValue: raw)
+        var mods: UInt32 = 0
+        if flags.contains(.command) { mods |= UInt32(cmdKey) }
+        if flags.contains(.shift)   { mods |= UInt32(shiftKey) }
+        if flags.contains(.option)  { mods |= UInt32(optionKey) }
+        if flags.contains(.control) { mods |= UInt32(controlKey) }
+        return mods
     }
 
     private func currentBindings() -> [(Hotkey, () -> Void)] {
@@ -1084,30 +1154,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSWorkspace.shared.open(url)
     }
 
-    private func matchedAction(for event: NSEvent, in bindings: [(Hotkey, () -> Void)]) -> (() -> Void)? {
-        // Don't intercept hotkeys while a ShortcutRecorder is recording — let keys through.
-        if NSApp.keyWindow?.firstResponder is RecorderNSView {
-            return nil
-        }
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        for (hk, action) in bindings {
-            let target = NSEvent.ModifierFlags(rawValue: hk.modifiers)
-                .intersection(.deviceIndependentFlagsMask)
-            if event.keyCode == hk.keyCode && flags == target {
-                return action
-            }
-        }
-        return nil
-    }
-
-    private func removeHotkeyMonitors() {
-        if let g = globalHotkeyMonitor { NSEvent.removeMonitor(g); globalHotkeyMonitor = nil }
-        if let l = localHotkeyMonitor { NSEvent.removeMonitor(l); localHotkeyMonitor = nil }
-    }
-
     @objc private func hotkeyChanged() {
-        registerHotkeyMonitors()
+        registerAllHotkeys()
         buildRightClickMenu()
+    }
+
+    // The ShortcutRecorder captures keys via the responder chain, but Carbon
+    // eats registered hotkeys before they reach the responder chain. Pause
+    // registration while a recorder is active so users can re-assign a
+    // currently-registered combo.
+    @objc private func shortcutRecordingStarted() {
+        unregisterAllHotkeys()
+    }
+
+    @objc private func shortcutRecordingEnded() {
+        registerAllHotkeys()
     }
 }
 

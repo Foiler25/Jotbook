@@ -52,7 +52,6 @@ Jotbook lives in your menubar and lets you capture a quick thought without conte
 
 ### macOS integration
 - **Runs as an accessory** — no dock icon, no app switcher clutter.
-- **Accessibility prompt** — on first launch, Jotbook asks for the permission needed to capture global keystrokes, with a direct link to the right Privacy pane.
 - **Right-click the menubar icon** for Open Jotbook · Open Note File · Show Preview · Settings… · Switch Jotbook (submenu, when you have more than one) · Quit Jotbook. Key equivalents are shown inline for shortcuts you've enabled.
 
 ## Install
@@ -66,13 +65,8 @@ The first launch needs a one-time extra step because the app isn't signed with a
 1. Right-click `Jotbook.app` in `/Applications` → **Open**.
 2. macOS will block the launch — open **System Settings → Privacy & Security**, scroll to the "*Jotbook* was blocked" notice, and click **Open Anyway**. Authenticate with Touch ID or your password.
 3. Click **Open** in the final confirmation dialog.
-4. Grant **Accessibility** access when prompted — required for global hotkeys.
 
-After that, launch it like any other app.
-
-### Updating
-
-Because Jotbook isn't signed with a stable Apple Developer ID, each release has a different ad-hoc code signature. macOS ties the **Accessibility** grant to that signature, so when you install a new version you'll need to re-enable Jotbook in **System Settings → Privacy & Security → Accessibility** for global hotkeys to work again. Toggle Jotbook off and back on (or remove it with `–` and re-add it with `+`). Everything else — your Jotbooks, notes, settings — carries over untouched.
+After that, launch it like any other app. Global hotkeys work out of the box — no permission prompts.
 
 ### Build from source
 
@@ -82,7 +76,6 @@ Jotbook is built with SwiftUI + AppKit and targets macOS 13+.
 2. Open `Jotbook.xcodeproj` in Xcode.
 3. Select the **Jotbook** scheme.
 4. Build and run (`⌘R`).
-5. On first launch, grant **Accessibility** access when prompted.
 
 Because Jotbook is licensed under GPLv3 (see [LICENSE](LICENSE)), you're free to modify and redistribute your own builds — as long as the source for those builds is made available under the same license.
 
