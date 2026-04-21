@@ -49,6 +49,7 @@ Jotbook lives in your menubar and lets you capture a quick thought without conte
 - **Optional global quit shortcut** — `⌥Q` by default, off until you enable it.
 - **Optional global preview shortcut** — `⇧⌥P` by default, off until you enable it.
 - **Launch at login** — uses `SMAppService`, survives macOS updates.
+- **About & auto-updates** — see the current version, toggle automatic update checks, or click **Check for Updates…** to pull the latest release on demand.
 
 ### macOS integration
 - **Runs as an accessory** — no dock icon, no app switcher clutter.
@@ -67,6 +68,8 @@ The first launch needs a one-time extra step because the app isn't signed with a
 3. Click **Open** in the final confirmation dialog.
 
 After that, launch it like any other app. Global hotkeys work out of the box — no permission prompts.
+
+From this version onward, Jotbook auto-updates itself. Sparkle checks for a new release on launch and once a day afterwards; new versions install silently on next quit → reopen, without repeating the right-click → Open dance (Sparkle strips the quarantine flag from verified updates). You can disable automatic checks or trigger a manual check from **Settings → About**, or from **Check for Updates…** in the menubar right-click menu.
 
 ### Build from source
 

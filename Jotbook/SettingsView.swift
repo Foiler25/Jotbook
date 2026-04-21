@@ -267,6 +267,7 @@ struct SettingsView: View {
     @State private var quitHotkey: Hotkey = .load(.quit)
     @State private var launchAtLogin: Bool = (SMAppService.mainApp.status == .enabled)
     @State private var launchError: String?
+    @EnvironmentObject private var updater: UpdaterViewModel
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -418,6 +419,33 @@ struct SettingsView: View {
                     Text(e).font(.caption).foregroundStyle(.red)
                 }
             }
+            Section("About") {
+                HStack(alignment: .center, spacing: 10) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .frame(width: 40, height: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Jotbook").font(.headline)
+                        Text("Version \(appVersion) (\(appBuild))")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text("© 2026 Brandon Villar")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                Toggle("Automatically check for updates",
+                       isOn: $updater.automaticallyChecksForUpdates)
+                HStack {
+                    Button("Check for Updates…") { updater.checkForUpdates() }
+                    Spacer()
+                    Button("View releases on GitHub") {
+                        if let url = URL(string: "https://github.com/Foiler25/Jotbook/releases") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    .buttonStyle(.link)
+                }
+            }
         }
         .formStyle(.grouped)
     }
@@ -496,6 +524,14 @@ struct SettingsView: View {
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = dateFormat
         return f.string(from: Date())
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+    }
+
+    private var appBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
     }
 
 private var dailyRotationPreview: String {

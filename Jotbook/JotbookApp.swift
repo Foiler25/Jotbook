@@ -19,6 +19,7 @@ import AppKit
 import Carbon.HIToolbox
 import Combine
 import ServiceManagement
+import Sparkle
 
 final class NoteEditorState: ObservableObject {
     @Published var text = ""
@@ -466,6 +467,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var settingsWindow: NSWindow?
     private var previewController: PreviewWindowController?
 
+    lazy var updaterController: SPUStandardUpdaterController = {
+        SPUStandardUpdaterController(
+            startingUpdater: true,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
+    }()
+    lazy var updaterViewModel = UpdaterViewModel(updaterController)
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         registerUserDefaults()
@@ -506,6 +516,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             name: .jotShortcutRecordingEnded,
             object: nil
         )
+
+        _ = updaterController
     }
 
     @objc private func jotbooksChanged() {
@@ -611,6 +623,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         menu.addItem(preview)
 
+        let checkUpdates = NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+            keyEquivalent: ""
+        )
+        checkUpdates.target = updaterController
+        menu.addItem(checkUpdates)
+
         let settings = NSMenuItem(title: "Settings…", action: #selector(showJotConfig), keyEquivalent: "")
         settings.target = self
         settings.image = nil
@@ -684,7 +704,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 defer: false
             )
             window.title = "Jotbook Settings"
-            window.contentView = NSHostingView(rootView: SettingsView())
+            window.contentView = NSHostingView(
+                rootView: SettingsView().environmentObject(self.updaterViewModel)
+            )
             window.center()
             window.isReleasedWhenClosed = false
             window.delegate = self
@@ -1170,6 +1192,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func shortcutRecordingEnded() {
         registerAllHotkeys()
     }
+}
+
+final class UpdaterViewModel: ObservableObject {
+    private let updater: SPUUpdater
+    @Published var automaticallyChecksForUpdates: Bool {
+        didSet { updater.automaticallyChecksForUpdates = automaticallyChecksForUpdates }
+    }
+
+    init(_ controller: SPUStandardUpdaterController) {
+        self.updater = controller.updater
+        self.automaticallyChecksForUpdates = controller.updater.automaticallyChecksForUpdates
+    }
+
+    func checkForUpdates() { updater.checkForUpdates() }
 }
 
 enum NoteAppender {
