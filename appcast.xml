@@ -6,5 +6,24 @@
     <link>https://raw.githubusercontent.com/Foiler25/Jotbook/main/appcast.xml</link>
     <description>Jotbook updates</description>
     <language>en</language>
+      <item>
+      <title>Jotbook 1.04</title>
+      <pubDate>Tue, 21 Apr 2026 13:18:30 +0000</pubDate>
+      <sparkle:version>1.04</sparkle:version>
+      <sparkle:shortVersionString>1.04</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# Jotbook 1.04
+
+## New
+- **Automatic updates** — Jotbook now ships with Sparkle. It checks for a new release on launch and once a day after that, and installs updates silently the next time you quit and reopen the app. No more right-click → Open dance for future updates.
+- **About section in Settings** — a new **About** panel shows the current version and build, toggles automatic update checks, offers a **Check for Updates…** button, and links out to the full release history on GitHub.
+- **Check for Updates… menu item** — added to the menubar right-click menu so you can pull the latest release on demand without opening Settings.
+
+## Install
+Download `Jotbook-1.04.dmg`, open it, drag Jotbook to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway (authenticate with Touch ID), then Open in the final dialog.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.04/Jotbook-1.04.dmg" sparkle:edSignature="Dis+B9df8r7aHysWCrTxWWr1VmH4N/pW2ArGgsSHRe1kONvEJp7Am4t4gmJgZTUToFNewW+WsuUjdTQ4UlILDw==" length="2181495" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
