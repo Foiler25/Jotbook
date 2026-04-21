@@ -435,9 +435,19 @@ struct NoteEditorView: View {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
+// NSPopover resolves its anchor to off-screen coordinates on macOS 26 /
+// notched displays — the popover lands at the top of the screen instead of
+// below the status-item button. We host the capture editor in a manually
+// positioned NSPanel to get reliable placement across macOS versions.
+final class CapturePanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem!
-    private let popover = NSPopover()
+    private var captureWindow: CapturePanel?
+    private var clickOutsideMonitor: Any?
     private var rightClickMenu: NSMenu!
     private var globalHotkeyMonitor: Any?
     private var localHotkeyMonitor: Any?
@@ -455,8 +465,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         registerUserDefaults()
         migrateDailyRotationFormatIfNeeded()
         Jotbooks.ensureAtLeastOne()
+        installMainMenu()
         installStatusItem()
-        configurePopover()
         buildRightClickMenu()
         registerHotkeyMonitors()
         promptForAccessibilityIfNeeded()
@@ -545,13 +555,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
-    private func configurePopover() {
-        popover.behavior = .transient
-        popover.contentSize = NSSize(width: 320, height: 140)
-        popover.delegate = self
-        // contentViewController is assigned fresh on each showPopover() and
-        // cleared in popoverDidClose() so the SwiftUI view tree + NSTextView
-        // + its undo manager are released between popover sessions.
+    // .accessory apps have no main menu by default, so standard Edit-menu
+    // key equivalents (⌘X/⌘C/⌘V/⌘A/⌘Z/⌘⇧Z) never reach NSTextView. Install a
+    // hidden main menu with an Edit submenu whose items target nil so AppKit
+    // dispatches them through the responder chain to the focused text view.
+    private func installMainMenu() {
+        let edit = NSMenu(title: "Edit")
+
+        let undo = NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(undo)
+
+        let redo = NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        edit.addItem(redo)
+
+        edit.addItem(.separator())
+
+        edit.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
+        edit.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
+        edit.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
+
+        let pasteMatch = NSMenuItem(
+            title: "Paste and Match Style",
+            action: #selector(NSTextView.pasteAsPlainText(_:)),
+            keyEquivalent: "V"
+        )
+        pasteMatch.keyEquivalentModifierMask = [.command, .option, .shift]
+        edit.addItem(pasteMatch)
+
+        edit.addItem(.separator())
+
+        edit.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+
+        let editItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
+        editItem.submenu = edit
+
+        let mainMenu = NSMenu()
+        mainMenu.addItem(editItem)
+        NSApp.mainMenu = mainMenu
     }
 
     private func buildRightClickMenu() {
@@ -666,20 +707,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         }
     }
 
+    // If the capture panel loses key focus to a window in another app (e.g.
+    // the user cmd-tabs), dismiss it the same way a click-outside would.
+    func windowDidResignKey(_ notification: Notification) {
+        guard let resigning = notification.object as? NSWindow,
+              resigning === captureWindow,
+              resigning.isVisible else { return }
+        closeCapture(explicit: false)
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
 
     private func togglePopover() {
-        if popover.isShown {
-            popover.performClose(nil)
+        if let win = captureWindow, win.isVisible {
+            closeCapture(explicit: true)
         } else {
             showPopover()
         }
     }
 
     private func showPopover() {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem.button, let buttonWindow = button.window else { return }
         editorState.text = ""
         editorState.searching = false
         editorState.searchQuery = ""
@@ -695,16 +745,89 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         editorState.editableRecentText = editableText
         editorState.originalEditableRecentText = editableText
 
-        popover.contentSize = basePopoverSize()
-        popover.contentViewController = NSHostingController(
+        let panel = captureWindow ?? makeCapturePanel()
+        captureWindow = panel
+
+        let host = NSHostingView(
             rootView: NoteEditorView(
                 state: editorState,
                 onOpenFile: { [weak self] in self?.openTargetFile() }
             )
         )
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        host.translatesAutoresizingMaskIntoConstraints = true
+        panel.contentView = host
+
+        positionCapturePanel(panel, size: basePopoverSize(), anchor: button, in: buttonWindow)
         NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
         installPopoverKeyMonitor()
+        installClickOutsideMonitor()
+    }
+
+    private func makeCapturePanel() -> CapturePanel {
+        let panel = CapturePanel(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 140),
+            styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
+        panel.isMovableByWindowBackground = false
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = false
+        panel.level = .popUpMenu
+        panel.hasShadow = true
+        panel.isReleasedWhenClosed = false
+        panel.collectionBehavior = [.transient, .ignoresCycle, .moveToActiveSpace]
+        panel.delegate = self
+        return panel
+    }
+
+    private func positionCapturePanel(
+        _ panel: CapturePanel,
+        size: NSSize,
+        anchor button: NSStatusBarButton,
+        in buttonWindow: NSWindow
+    ) {
+        let buttonRectInWindow = button.convert(button.bounds, to: nil)
+        let buttonScreenRect = buttonWindow.convertToScreen(buttonRectInWindow)
+        let screen = buttonWindow.screen ?? NSScreen.main ?? NSScreen.screens.first
+        let visible = screen?.visibleFrame ?? buttonScreenRect
+        var x = buttonScreenRect.midX - size.width / 2
+        x = max(visible.minX + 4, min(x, visible.maxX - size.width - 4))
+        let y = buttonScreenRect.minY - size.height - 2
+        panel.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height), display: true)
+    }
+
+    private func resizeCapturePanel(to size: NSSize) {
+        guard let panel = captureWindow, let button = statusItem.button, let win = button.window else { return }
+        positionCapturePanel(panel, size: size, anchor: button, in: win)
+    }
+
+    private func installClickOutsideMonitor() {
+        removeClickOutsideMonitor()
+        clickOutsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            guard let self, let win = self.captureWindow, win.isVisible else { return }
+            self.closeCapture(explicit: false)
+        }
+    }
+
+    private func removeClickOutsideMonitor() {
+        if let m = clickOutsideMonitor {
+            NSEvent.removeMonitor(m)
+            clickOutsideMonitor = nil
+        }
+    }
+
+    private func closeCapture(explicit: Bool) {
+        guard let panel = captureWindow, panel.isVisible else { return }
+        if explicit { explicitlyDismissed = true }
+        panel.orderOut(nil)
+        handleCaptureDidClose()
     }
 
     private func basePopoverSize() -> NSSize {
@@ -756,9 +879,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
                     self.exitSearchMode()
                     return nil
                 }
-                self.explicitlyDismissed = true
                 self.escPressed = true
-                self.popover.performClose(nil)
+                self.closeCapture(explicit: true)
                 return nil
             }
             return event
@@ -769,17 +891,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         editorState.searchQuery = ""
         editorState.searchResults = []
         editorState.searching = true
-        popover.contentSize = searchPopoverSize()
+        resizeCapturePanel(to: searchPopoverSize())
     }
 
     private func exitSearchMode() {
         editorState.searching = false
         editorState.searchQuery = ""
         editorState.searchResults = []
-        popover.contentSize = basePopoverSize()
+        resizeCapturePanel(to: basePopoverSize())
     }
 
-    func popoverDidClose(_ notification: Notification) {
+    private func handleCaptureDidClose() {
+        removeClickOutsideMonitor()
         if let m = popoverKeyMonitor {
             NSEvent.removeMonitor(m)
             popoverKeyMonitor = nil
@@ -825,22 +948,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         // Release the SwiftUI view tree, JotTextEditor's NSTextView (and its
         // accumulated undo manager), and the NoteTextViewHolder. Next
-        // showPopover() installs a fresh contentViewController.
-        popover.contentViewController = nil
+        // showPopover() installs a fresh content view.
+        captureWindow?.contentView = nil
     }
 
     private func save() {
         let trimmed = editorState.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            explicitlyDismissed = true
-            popover.performClose(nil)
+            closeCapture(explicit: true)
             return
         }
         do {
             try NoteAppender.append(trimmed)
             editorState.text = ""
-            explicitlyDismissed = true
-            popover.performClose(nil)
+            closeCapture(explicit: true)
             flashSaveCheckmark()
         } catch {
             let alert = NSAlert(error: error)
@@ -909,8 +1030,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     private func captureIntoJotbook(withID id: UUID) {
         Jotbooks.setActive(id)
-        if popover.isShown {
-            popover.performClose(nil)
+        if let win = captureWindow, win.isVisible {
+            closeCapture(explicit: true)
         }
         showPopover()
     }

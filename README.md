@@ -70,6 +70,10 @@ The first launch needs a one-time extra step because the app isn't signed with a
 
 After that, launch it like any other app.
 
+### Updating
+
+Because Jotbook isn't signed with a stable Apple Developer ID, each release has a different ad-hoc code signature. macOS ties the **Accessibility** grant to that signature, so when you install a new version you'll need to re-enable Jotbook in **System Settings → Privacy & Security → Accessibility** for global hotkeys to work again. Toggle Jotbook off and back on (or remove it with `–` and re-add it with `+`). Everything else — your Jotbooks, notes, settings — carries over untouched.
+
 ### Build from source
 
 Jotbook is built with SwiftUI + AppKit and targets macOS 13+.
