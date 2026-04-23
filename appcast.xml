@@ -25,5 +25,28 @@ Download `Jotbook-1.04.dmg`, open it, drag Jotbook to Applications. First launch
       ]]></description>
       <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.04/Jotbook-1.04.dmg" sparkle:edSignature="Dis+B9df8r7aHysWCrTxWWr1VmH4N/pW2ArGgsSHRe1kONvEJp7Am4t4gmJgZTUToFNewW+WsuUjdTQ4UlILDw==" length="2181495" type="application/octet-stream" />
     </item>
+      <item>
+      <title>Jotbook 1.05</title>
+      <pubDate>Thu, 23 Apr 2026 14:33:36 +0000</pubDate>
+      <sparkle:version>1.05</sparkle:version>
+      <sparkle:shortVersionString>1.05</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# Jotbook 1.05
+
+## New
+
+- **Editable preview mode.** The preview window can now double as a lightweight editor for your notes file. Turn it on to edit the raw markdown in place, with a formatting toolbar down the left (bold, italic, strikethrough, inline code, link, H1/H2/H3, bullet, numbered, blockquote) and a quick-insert bar across the top populated from your snippet list (TODO:, Idea:, ?:, or whatever you've customized). Standard macOS text shortcuts — copy, paste, undo/redo, word-wise navigation, select-all, right-click menu — all work as you'd expect.
+- **Edit toggle in the preview title bar.** A small "Edit" button in the top-right of the preview window flips between rendered view and editor mode without having to open Settings. It stays in sync with the Settings toggle.
+- **Editable preview setting.** Under Settings › Preview window, a new toggle — *Make preview editable (show formatting toolbars)* — controls whether the preview opens as an editor or as the rendered markdown. Off by default, so upgrading changes nothing unless you turn it on.
+- **Safe save/reload behavior.** Edits are written to disk automatically when the preview loses focus or closes; if you add a new entry from the capture popover while the preview was blurred, the preview reloads the latest file contents when you return to it, so your edits and your captures don't fight each other.
+
+## Install & update
+
+- **Already installed?** Jotbook auto-updates — you'll get a prompt shortly, or pick *Check for Updates…* in Settings › About to grab it now.
+- **First time?** Download `Jotbook-1.05.dmg`, open it, drag Jotbook to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway (authenticate with Touch ID), then Open in the final dialog.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.05/Jotbook-1.05.dmg" sparkle:edSignature="jvZQebtwSPqMp85t7y2Ssibnt/VZLFNJKORw130Hnyj/fcqbYeJ+KE6FF3+mhyOuho7zulRCTWcM+4fpWaccBw==" length="2194138" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
