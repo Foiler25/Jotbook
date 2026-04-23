@@ -453,13 +453,241 @@ struct NoteEditorView: View {
     }
 }
 
-// NSPopover resolves its anchor to off-screen coordinates on macOS 26 /
-// notched displays — the popover lands at the top of the screen instead of
-// below the status-item button. We host the capture editor in a manually
-// positioned NSPanel to get reliable placement across macOS versions.
+// We always anchor the capture panel under the notch (on notched MacBooks)
+// or to the screen-top center (on other displays) rather than to the status
+// item. This keeps the panel reachable when the menubar icon is hidden by
+// Bartender or a similar manager — and sidesteps a macOS 26 / notched-display
+// bug where NSPopover resolves its anchor to off-screen coordinates and drops
+// the popover into a screen corner.
 final class CapturePanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+}
+
+// Resolves the on-screen rect that the capture panel should hang from:
+// the real notch on notched MacBooks (via NSScreen.auxiliaryTop{Left,Right}Area),
+// or a synthetic top-center anchor just below the menubar otherwise. The
+// screen is chosen by mouse location so multi-monitor setups open the panel
+// where the user is looking.
+private enum NotchAnchor {
+    struct Info {
+        var screen: NSScreen
+        var centerX: CGFloat
+        var bottomY: CGFloat
+        var hasNotch: Bool
+        var notchWidth: CGFloat
+        var notchHeight: CGFloat
+        // Current menubar reservation on this screen. Equals
+        // frame.maxY - visibleFrame.maxY, which is the notched-menubar
+        // height in normal mode and 0 when the menubar is auto-hidden
+        // (e.g., a full-screen app is on this screen).
+        var menubarHeight: CGFloat
+    }
+
+    static func resolve() -> Info {
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) })
+            ?? NSScreen.main
+            ?? NSScreen.screens.first!
+        let frame = screen.frame
+        let menubarHeight = max(0, frame.maxY - screen.visibleFrame.maxY)
+
+        if #available(macOS 12.0, *),
+           let topLeft = screen.auxiliaryTopLeftArea,
+           let topRight = screen.auxiliaryTopRightArea,
+           topLeft != .zero, topRight != .zero {
+            let notchHeight = max(topLeft.height, topRight.height)
+            let notchWidth = max(0, frame.width - topLeft.width - topRight.width)
+            let notchCenterX = (topLeft.maxX + topRight.minX) / 2
+            return Info(
+                screen: screen,
+                centerX: notchCenterX,
+                bottomY: screen.visibleFrame.maxY,
+                hasNotch: true,
+                notchWidth: notchWidth,
+                notchHeight: notchHeight,
+                menubarHeight: menubarHeight
+            )
+        }
+
+        return Info(
+            screen: screen,
+            centerX: frame.midX,
+            bottomY: screen.visibleFrame.maxY,
+            hasNotch: false,
+            notchWidth: 0,
+            notchHeight: 0,
+            menubarHeight: menubarHeight
+        )
+    }
+}
+
+// Top edge is straight at the full rect width; immediately below the top edge,
+// concave scoops at the top-left and top-right curl the shape inward by
+// shoulderRadius, narrowing down to a body of width (rect.width - 2*shoulderRadius).
+// Bottom corners are standard rounded-rectangle corners. When the shape
+// animates from (notchWidth, 0) up to (fullWidth, fullHeight), it reads as
+// something "dripping" out of the notch and spilling outward.
+struct NotchBlendShape: Shape {
+    var shoulderRadius: CGFloat
+    var bottomRadius: CGFloat
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(shoulderRadius, bottomRadius) }
+        set { shoulderRadius = newValue.first; bottomRadius = newValue.second }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let tr = max(0, min(rect.width / 2, shoulderRadius))
+        let br = max(0, min(rect.width / 2, bottomRadius))
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX + tr, y: rect.minY + tr),
+            control: CGPoint(x: rect.minX + tr, y: rect.minY)
+        )
+        path.addLine(to: CGPoint(x: rect.minX + tr, y: rect.maxY - br))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX + tr + br, y: rect.maxY),
+            control: CGPoint(x: rect.minX + tr, y: rect.maxY)
+        )
+        path.addLine(to: CGPoint(x: rect.maxX - tr - br, y: rect.maxY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX - tr, y: rect.maxY - br),
+            control: CGPoint(x: rect.maxX - tr, y: rect.maxY)
+        )
+        path.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY + tr))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY),
+            control: CGPoint(x: rect.maxX - tr, y: rect.minY)
+        )
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+// Mutable state driving the open/close + resize springs of the blended shell.
+final class BlendUIState: ObservableObject {
+    @Published var visible: Bool
+    @Published var opacity: Double
+    @Published var editorSize: CGSize
+
+    init(editorSize: CGSize, visible: Bool = false, opacity: Double = 1) {
+        self.editorSize = editorSize
+        self.visible = visible
+        self.opacity = opacity
+    }
+}
+
+// SwiftUI shell that hosts the existing NoteEditorView inside the notch-blend
+// shape and drives the open/close spring. The NSPanel stays at a fixed canvas
+// size; everything springy happens inside this view.
+//
+// Layout (SwiftUI top-left origin, canvas top aligned with `frame.maxY` so
+// the top `menubarHeight` of the canvas sits inside the menubar region:
+//   y = 0                              panel top = screen top
+//   y in [0, menubarHeight]            shape extends into menubar area; the
+//                                      top edge sits in/behind the physical
+//                                      notch on notched MacBooks
+//   y in [menubarHeight,
+//         menubarHeight + collarDrop]  black lip continuing the notch's black
+//   y in [+, + + fadeBand]             gradient black → windowBackgroundColor
+//   y ≥ menubarHeight + collarDrop
+//     + fadeBand                       editor (prefix bar, text, formatting)
+struct CapturePanelShell: View {
+    @ObservedObject var state: NoteEditorState
+    @ObservedObject var ui: BlendUIState
+    let onOpenFile: () -> Void
+
+    let canvasSize: CGSize
+    let notchWidth: CGFloat
+    let menubarHeight: CGFloat
+    let collarDrop: CGFloat
+    let fadeBand: CGFloat
+    let shoulderRadius: CGFloat
+    let bottomRadius: CGFloat
+    // Extra room around the shape for the SwiftUI-drawn shadow. The outer
+    // frame expands by this much so the shadow doesn't get clipped at the
+    // NSWindow edge. Panel-level AppKit shadow is disabled when this path
+    // is in use (see presentNotchBlendedPanel).
+    let shadowPadding: CGFloat
+
+    private var editorTopInset: CGFloat {
+        menubarHeight + collarDrop + fadeBand
+    }
+
+    var body: some View {
+        let bodyHeight = editorTopInset + ui.editorSize.height
+        let shapeWidth = ui.visible ? canvasSize.width : max(notchWidth, 1)
+        let shapeHeight = ui.visible ? bodyHeight : 0
+        let shapeH = max(shapeHeight, 1)
+        let fadeStart = max(0, min(1, (menubarHeight + collarDrop) / shapeH))
+        let fadeEnd = max(fadeStart, min(1, (menubarHeight + collarDrop + fadeBand) / shapeH))
+
+        ZStack(alignment: .top) {
+            NotchBlendShape(shoulderRadius: shoulderRadius, bottomRadius: bottomRadius)
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0),
+                            .init(color: .black, location: fadeStart),
+                            .init(color: Color(nsColor: .windowBackgroundColor), location: fadeEnd),
+                            .init(color: Color(nsColor: .windowBackgroundColor), location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: shapeWidth, height: shapeHeight)
+                .shadow(color: Color.black.opacity(0.32), radius: 14, x: 0, y: 6)
+                .animation(
+                    ui.visible
+                        ? .spring(response: 0.42, dampingFraction: 0.80)
+                        : .spring(response: 0.50, dampingFraction: 0.85),
+                    value: ui.visible
+                )
+
+            NoteEditorView(state: state, onOpenFile: onOpenFile)
+                .frame(width: ui.editorSize.width, height: ui.editorSize.height)
+                .padding(.top, editorTopInset)
+                .opacity(ui.visible ? 1 : 0)
+                .animation(
+                    ui.visible
+                        ? .easeOut(duration: 0.26).delay(0.14)
+                        : .easeIn(duration: 0.14),
+                    value: ui.visible
+                )
+        }
+        .frame(width: canvasSize.width, height: canvasSize.height, alignment: .top)
+        .padding(.horizontal, shadowPadding)
+        .padding(.bottom, shadowPadding)
+        .opacity(ui.opacity)
+        // No outer .animation(_, value:) modifier on purpose. That modifier
+        // acts as an animation wall that nullifies any withAnimation
+        // transaction for state that it doesn't watch, which was preventing
+        // the close fade. Animations are driven explicitly via
+        // withAnimation at the call site (see showPopover / closeCapture)
+        // or via inner .animation modifiers on the shape + editor above.
+    }
+}
+
+// NSView used as the panel's contentView when we're in notch-blend mode.
+// Lets clicks on transparent shoulders fall through to the underlying app
+// so the global click-outside monitor can dismiss the capture panel.
+final class NotchCanvasView: NSView {
+    var visibleShapePath: CGPath?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = convert(point, from: superview)
+        if let path = visibleShapePath, !path.contains(local) { return nil }
+        return super.hitTest(point)
+    }
+}
+
+private enum CaptureMode {
+    case fadeSlide
+    case notchBlend
 }
 
 private struct RegisteredHotkey {
@@ -480,6 +708,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var saveFlashToken = 0
     private var explicitlyDismissed = false
     private var escPressed = false
+    private var captureMode: CaptureMode = .fadeSlide
+    private var blendUIState: BlendUIState?
+    // Set while a close animation is running so re-entry via
+    // windowDidResignKey / globalMouseMonitor doesn't restart the animation
+    // and snap-reset alphaValue.
+    private var isClosing = false
     private let editorState = NoteEditorState()
     private var settingsWindow: NSWindow?
     private var previewController: PreviewWindowController?
@@ -780,7 +1014,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func showPopover() {
-        guard let button = statusItem.button, let buttonWindow = button.window else { return }
+        isClosing = false
         editorState.text = ""
         editorState.searching = false
         editorState.searchQuery = ""
@@ -798,6 +1032,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let panel = captureWindow ?? makeCapturePanel()
         captureWindow = panel
+
+        let anchor = NotchAnchor.resolve()
+        let useBlend = anchor.hasNotch && !shouldReduceMotion()
+
+        NSApp.activate(ignoringOtherApps: true)
+        if useBlend {
+            captureMode = .notchBlend
+            presentNotchBlendedPanel(panel: panel, anchor: anchor)
+        } else {
+            captureMode = .fadeSlide
+            blendUIState = nil
+            presentFadeSlidePanel(panel: panel)
+        }
+        installPopoverKeyMonitor()
+        installClickOutsideMonitor()
+    }
+
+    private func presentFadeSlidePanel(panel: CapturePanel) {
+        // Fade-slide doesn't resize the window during the animation, so
+        // AppKit's cached shadow traces the correct outline. Re-enable it in
+        // case the panel was last used in notch-blend mode where it's off.
+        panel.hasShadow = true
 
         let size = basePopoverSize()
         let container = NSView(frame: NSRect(origin: .zero, size: size))
@@ -817,11 +1073,120 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         container.addSubview(host)
         panel.contentView = container
 
-        positionCapturePanel(panel, size: size, anchor: button, in: buttonWindow)
-        NSApp.activate(ignoringOtherApps: true)
-        panel.makeKeyAndOrderFront(nil)
-        installPopoverKeyMonitor()
-        installClickOutsideMonitor()
+        let finalFrame = capturePanelFrame(size: size)
+        animateCapturePanelIn(panel, finalFrame: finalFrame)
+    }
+
+    private func presentNotchBlendedPanel(panel: CapturePanel, anchor: NotchAnchor.Info) {
+        let editorSize = basePopoverSize()
+        let searchSize = searchPopoverSize()
+        let maxEditorHeight = max(editorSize.height, searchSize.height)
+
+        let shoulderRadius: CGFloat = 14
+        let bottomRadius: CGFloat = 16
+        // Visible black+fade below the menubar = collarDrop + fadeBand. Kept
+        // tight so there's no tall dark band before the editor on either a
+        // normal desktop or behind a full-screen app.
+        let collarDrop: CGFloat = 2
+        let fadeBand: CGFloat = 14
+        let shadowPadding: CGFloat = 24
+        // Use the *current* menubar reservation, not the design-time notched
+        // menubar height. When the menubar is hidden (e.g., a full-screen
+        // app is on this screen), menubarHeight drops to 0 and the shape's
+        // top no longer has a large black "behind the menubar" strip, which
+        // would otherwise be visible as a giant dark bar above the gradient.
+        let menubarHeight = anchor.menubarHeight
+
+        // Canvas extends from the screen top (overlapping the menubar area
+        // when one is present) down past the editor.
+        let editorTopInset = menubarHeight + collarDrop + fadeBand
+        let canvasSize = CGSize(
+            width: editorSize.width + shoulderRadius * 2,
+            height: editorTopInset + maxEditorHeight
+        )
+        // Window is larger than the visible canvas so the SwiftUI .shadow on
+        // the shape has room to render without being clipped. Extra space on
+        // the sides and below; no extra space on top since the shape's top
+        // edge must land at frame.maxY.
+        let windowSize = CGSize(
+            width: canvasSize.width + shadowPadding * 2,
+            height: canvasSize.height + shadowPadding
+        )
+
+        let uiState = BlendUIState(editorSize: editorSize)
+        blendUIState = uiState
+
+        let shell = CapturePanelShell(
+            state: editorState,
+            ui: uiState,
+            onOpenFile: { [weak self] in self?.openTargetFile() },
+            canvasSize: canvasSize,
+            notchWidth: anchor.notchWidth,
+            menubarHeight: menubarHeight,
+            collarDrop: collarDrop,
+            fadeBand: fadeBand,
+            shoulderRadius: shoulderRadius,
+            bottomRadius: bottomRadius,
+            shadowPadding: shadowPadding
+        )
+
+        let canvas = NotchCanvasView(frame: NSRect(origin: .zero, size: windowSize))
+        let host = NSHostingView(rootView: shell)
+        host.frame = canvas.bounds
+        host.autoresizingMask = [.width, .height]
+        canvas.addSubview(host)
+        panel.contentView = canvas
+        // Disable AppKit's cached shadow — we draw it in SwiftUI so it tracks
+        // the live shape during the open/close spring instead of lagging
+        // behind as a ghost grey outline.
+        panel.hasShadow = false
+
+        let x = anchor.centerX - windowSize.width / 2
+        let screenTop = anchor.screen.frame.maxY
+        let y = screenTop - windowSize.height
+        panel.setFrame(NSRect(x: x, y: y, width: windowSize.width, height: windowSize.height), display: false)
+
+        // Start at alpha 0, order front, then animate
+        // to 1. beginGrouping/endGrouping with duration 0 commits the
+        // alpha = 0 instantly so the first frame doesn't flash at full opacity.
+        NSAnimationContext.beginGrouping()
+        NSAnimationContext.current.duration = 0
+        panel.alphaValue = 0
+        NSAnimationContext.endGrouping()
+
+        panel.orderFrontRegardless()
+        panel.makeKey()
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.22
+            panel.animator().alphaValue = 1
+        }
+
+        // Wait one display frame so SwiftUI commits the initial render at
+        // visible=false before we flip to true.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak uiState] in
+            uiState?.visible = true
+        }
+    }
+
+    private func animateCapturePanelIn(_ panel: CapturePanel, finalFrame: NSRect) {
+        if shouldReduceMotion() {
+            panel.alphaValue = 1
+            panel.setFrame(finalFrame, display: true)
+            panel.makeKeyAndOrderFront(nil)
+            return
+        }
+        let startFrame = finalFrame.offsetBy(dx: 0, dy: 6)
+        panel.alphaValue = 0
+        panel.setFrame(startFrame, display: false)
+        panel.orderFrontRegardless()
+        panel.makeKey()
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.18
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = 1
+            panel.animator().setFrame(finalFrame, display: true)
+        }
     }
 
     private func makeCapturePanel() -> CapturePanel {
@@ -842,30 +1207,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.level = .popUpMenu
         panel.hasShadow = true
         panel.isReleasedWhenClosed = false
-        panel.collectionBehavior = [.transient, .ignoresCycle, .moveToActiveSpace]
+        // No .transient here: .transient lets macOS auto-orderOut the panel
+        // when the user switches apps, which would bypass our close
+        // animation entirely.
+        panel.collectionBehavior = [.ignoresCycle, .moveToActiveSpace, .fullScreenAuxiliary]
         panel.delegate = self
         return panel
     }
 
-    private func positionCapturePanel(
-        _ panel: CapturePanel,
-        size: NSSize,
-        anchor button: NSStatusBarButton,
-        in buttonWindow: NSWindow
-    ) {
-        let buttonRectInWindow = button.convert(button.bounds, to: nil)
-        let buttonScreenRect = buttonWindow.convertToScreen(buttonRectInWindow)
-        let screen = buttonWindow.screen ?? NSScreen.main ?? NSScreen.screens.first
-        let visible = screen?.visibleFrame ?? buttonScreenRect
-        var x = buttonScreenRect.midX - size.width / 2
+    private func capturePanelFrame(size: NSSize) -> NSRect {
+        let anchor = NotchAnchor.resolve()
+        let visible = anchor.screen.visibleFrame
+        var x = anchor.centerX - size.width / 2
         x = max(visible.minX + 4, min(x, visible.maxX - size.width - 4))
-        let y = buttonScreenRect.minY - size.height - 2
-        panel.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height), display: true)
+        let y = anchor.bottomY - size.height - 2
+        return NSRect(x: x, y: y, width: size.width, height: size.height)
     }
 
     private func resizeCapturePanel(to size: NSSize) {
-        guard let panel = captureWindow, let button = statusItem.button, let win = button.window else { return }
-        positionCapturePanel(panel, size: size, anchor: button, in: win)
+        guard let panel = captureWindow else { return }
+        switch captureMode {
+        case .notchBlend:
+            blendUIState?.editorSize = size
+        case .fadeSlide:
+            let target = capturePanelFrame(size: size)
+            if shouldReduceMotion() {
+                panel.setFrame(target, display: true)
+            } else {
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = 0.14
+                    ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    panel.animator().setFrame(target, display: true)
+                }
+            }
+        }
+    }
+
+    private func shouldReduceMotion() -> Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
     private func installClickOutsideMonitor() {
@@ -884,10 +1263,65 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func closeCapture(explicit: Bool) {
-        guard let panel = captureWindow, panel.isVisible else { return }
+        guard let panel = captureWindow, panel.isVisible, !isClosing else { return }
+        isClosing = true
         if explicit { explicitlyDismissed = true }
-        panel.orderOut(nil)
         handleCaptureDidClose()
+
+        switch captureMode {
+        case .notchBlend:
+            closeNotchBlendedPanel(panel: panel)
+        case .fadeSlide:
+            closeFadeSlidePanel(panel: panel)
+        }
+    }
+
+    private func closeFadeSlidePanel(panel: CapturePanel) {
+        if shouldReduceMotion() {
+            panel.orderOut(nil)
+            panel.alphaValue = 1
+            isClosing = false
+            return
+        }
+
+        let exitFrame = panel.frame.offsetBy(dx: 0, dy: 4)
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.14
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+            panel.animator().setFrame(exitFrame, display: true)
+        }, completionHandler: { [weak self, weak panel] in
+            guard let panel else { return }
+            panel.orderOut(nil)
+            panel.alphaValue = 1
+            self?.isClosing = false
+        })
+    }
+
+    private func closeNotchBlendedPanel(panel: CapturePanel) {
+        guard let ui = blendUIState else {
+            panel.orderOut(nil)
+            isClosing = false
+            return
+        }
+        // Shape retract via the shape's inner .animation(_, value: ui.visible)
+        // — no withAnimation needed, and it can't interfere with the alpha
+        // animation below.
+        ui.visible = false
+        // fadeOut pattern: animate alphaValue to 0 in an
+        // NSAnimationContext group, orderOut in the completion handler.
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.40
+            panel.animator().alphaValue = 0
+        }, completionHandler: { [weak self, weak panel, weak ui] in
+            guard let self else { return }
+            self.isClosing = false
+            guard let panel, panel.alphaValue < 0.01 else { return }
+            if self.blendUIState === ui {
+                panel.orderOut(nil)
+                panel.alphaValue = 1
+            }
+        })
     }
 
     private func basePopoverSize() -> NSSize {
