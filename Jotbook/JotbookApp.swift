@@ -112,6 +112,57 @@ struct JotTextEditor: NSViewRepresentable {
     }
 }
 
+/// Shared markdown-editing operations against an explicit `NSTextView`. The
+/// capture editor resolves the text view via first-responder lookup; the
+/// preview editor passes its own text view directly.
+enum MarkdownFormatter {
+    static func wrapSelection(in tv: NSTextView, left: String, right: String) {
+        let range = tv.selectedRange()
+        let ns = tv.string as NSString
+        let selection = range.length > 0 ? ns.substring(with: range) : ""
+        let replacement = left + selection + right
+        tv.insertText(replacement, replacementRange: range)
+        if range.length == 0 {
+            let caret = range.location + (left as NSString).length
+            tv.setSelectedRange(NSRange(location: caret, length: 0))
+        }
+        tv.window?.makeFirstResponder(tv)
+    }
+
+    static func insertLink(in tv: NSTextView) {
+        let range = tv.selectedRange()
+        let ns = tv.string as NSString
+        let selection = range.length > 0 ? ns.substring(with: range) : ""
+        let replacement = "[\(selection)](url)"
+        tv.insertText(replacement, replacementRange: range)
+        let selectionLen = (selection as NSString).length
+        let urlStart = range.location + 1 + selectionLen + 2  // after "]("
+        let urlLen = 3  // "url"
+        tv.setSelectedRange(NSRange(location: urlStart, length: urlLen))
+        tv.window?.makeFirstResponder(tv)
+    }
+
+    static func insertLinePrefix(in tv: NSTextView, _ prefix: String) {
+        let range = tv.selectedRange()
+        let ns = tv.string as NSString
+        var lineStart = range.location
+        while lineStart > 0 && ns.character(at: lineStart - 1) != 0x0A {
+            lineStart -= 1
+        }
+        let prefixLen = (prefix as NSString).length
+        if ns.length - lineStart >= prefixLen {
+            let existing = ns.substring(with: NSRange(location: lineStart, length: prefixLen))
+            if existing == prefix {
+                tv.window?.makeFirstResponder(tv)
+                return
+            }
+        }
+        tv.insertText(prefix, replacementRange: NSRange(location: lineStart, length: 0))
+        tv.setSelectedRange(NSRange(location: range.location + prefixLen, length: range.length))
+        tv.window?.makeFirstResponder(tv)
+    }
+}
+
 struct NoteEditorView: View {
     @ObservedObject var state: NoteEditorState
     var onOpenFile: () -> Void
@@ -388,51 +439,17 @@ struct NoteEditorView: View {
 
     private func wrapSelection(left: String, right: String) {
         guard let tv = activeTextView() else { return }
-        let range = tv.selectedRange()
-        let ns = tv.string as NSString
-        let selection = range.length > 0 ? ns.substring(with: range) : ""
-        let replacement = left + selection + right
-        tv.insertText(replacement, replacementRange: range)
-        if range.length == 0 {
-            let caret = range.location + (left as NSString).length
-            tv.setSelectedRange(NSRange(location: caret, length: 0))
-        }
-        tv.window?.makeFirstResponder(tv)
+        MarkdownFormatter.wrapSelection(in: tv, left: left, right: right)
     }
 
     private func insertLink() {
         guard let tv = activeTextView() else { return }
-        let range = tv.selectedRange()
-        let ns = tv.string as NSString
-        let selection = range.length > 0 ? ns.substring(with: range) : ""
-        let replacement = "[\(selection)](url)"
-        tv.insertText(replacement, replacementRange: range)
-        let selectionLen = (selection as NSString).length
-        let urlStart = range.location + 1 + selectionLen + 2  // after "]("
-        let urlLen = 3  // "url"
-        tv.setSelectedRange(NSRange(location: urlStart, length: urlLen))
-        tv.window?.makeFirstResponder(tv)
+        MarkdownFormatter.insertLink(in: tv)
     }
 
     private func insertLinePrefix(_ prefix: String) {
         guard let tv = activeTextView() else { return }
-        let range = tv.selectedRange()
-        let ns = tv.string as NSString
-        var lineStart = range.location
-        while lineStart > 0 && ns.character(at: lineStart - 1) != 0x0A {
-            lineStart -= 1
-        }
-        let prefixLen = (prefix as NSString).length
-        if ns.length - lineStart >= prefixLen {
-            let existing = ns.substring(with: NSRange(location: lineStart, length: prefixLen))
-            if existing == prefix {
-                tv.window?.makeFirstResponder(tv)
-                return
-            }
-        }
-        tv.insertText(prefix, replacementRange: NSRange(location: lineStart, length: 0))
-        tv.setSelectedRange(NSRange(location: range.location + prefixLen, length: range.length))
-        tv.window?.makeFirstResponder(tv)
+        MarkdownFormatter.insertLinePrefix(in: tv, prefix)
     }
 }
 
@@ -466,6 +483,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let editorState = NoteEditorState()
     private var settingsWindow: NSWindow?
     private var previewController: PreviewWindowController?
+    private var lastSeenPreviewEditable: Bool = UserDefaults.standard.bool(forKey: DefaultsKey.previewEditable)
 
     lazy var updaterController: SPUStandardUpdaterController = {
         SPUStandardUpdaterController(
@@ -516,8 +534,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             name: .jotShortcutRecordingEnded,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(userDefaultsChanged),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
 
         _ = updaterController
+    }
+
+    @objc private func userDefaultsChanged() {
+        let current = UserDefaults.standard.bool(forKey: DefaultsKey.previewEditable)
+        guard current != lastSeenPreviewEditable else { return }
+        lastSeenPreviewEditable = current
+        previewController?.rebuildContentView()
     }
 
     @objc private func jotbooksChanged() {

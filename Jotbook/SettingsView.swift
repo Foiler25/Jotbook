@@ -39,6 +39,7 @@ enum DefaultsKey {
     static let previewHotkey          = "previewHotkey"
     static let previewHotkeyEnabled   = "previewHotkeyEnabled"
     static let previewAutoRefresh     = "previewAutoRefresh"
+    static let previewEditable        = "previewEditable"
     static let showFormattingBar      = "showFormattingBar"
     static let jotbooks              = "notebooks"
     static let activeJotbookID       = "activeNotebookID"
@@ -262,6 +263,7 @@ struct SettingsView: View {
     @State private var previewHotkeyEnabled: Bool = UserDefaults.standard.bool(forKey: DefaultsKey.previewHotkeyEnabled)
     @State private var previewHotkey: Hotkey = .load(.preview)
     @AppStorage(DefaultsKey.previewAutoRefresh) private var previewAutoRefresh: Bool = true
+    @AppStorage(DefaultsKey.previewEditable) private var previewEditable: Bool = false
     @AppStorage(DefaultsKey.showFormattingBar) private var showFormattingBar: Bool = true
     @State private var quitHotkeyEnabled: Bool = UserDefaults.standard.bool(forKey: DefaultsKey.quitHotkeyEnabled)
     @State private var quitHotkey: Hotkey = .load(.quit)
@@ -409,6 +411,7 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Toggle("Auto-refresh preview when the file changes", isOn: $previewAutoRefresh)
+                Toggle("Make preview editable (show formatting toolbars)", isOn: $previewEditable)
             }
             Section("Startup") {
                 Toggle("Launch at login", isOn: Binding(
