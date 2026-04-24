@@ -48,5 +48,33 @@ Download `Jotbook-1.04.dmg`, open it, drag Jotbook to Applications. First launch
       ]]></description>
       <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.05/Jotbook-1.05.dmg" sparkle:edSignature="jvZQebtwSPqMp85t7y2Ssibnt/VZLFNJKORw130Hnyj/fcqbYeJ+KE6FF3+mhyOuho7zulRCTWcM+4fpWaccBw==" length="2194138" type="application/octet-stream" />
     </item>
+      <item>
+      <title>Jotbook 1.06</title>
+      <pubDate>Fri, 24 Apr 2026 00:07:31 +0000</pubDate>
+      <sparkle:version>1.06</sparkle:version>
+      <sparkle:shortVersionString>1.06</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# Jotbook 1.06
+
+## New
+
+- **Notch-aware capture panel.** On 14" and 16" MacBook Pros with a notch, the capture panel now emerges from the notch itself with a spring animation — concave shoulders that tuck into the notch, a black-to-editor gradient that fades cleanly into the body, and a drop shadow that hugs the live shape. Reads as part of the Mac, not a floating popup.
+- **Opens on the screen you're looking at.** Multi-monitor setups now open the capture panel on whichever display has your mouse cursor, instead of always anchoring to a fixed screen.
+- **Works over full-screen apps.** When the menubar is auto-hidden (full-screen app), the panel collapses its top black region so you don't see a tall dark band above the editor.
+- **Fade-in animation** on open for a smoother appearance.
+- **Reduce Motion support.** With Reduce Motion enabled in System Settings › Accessibility › Display, Jotbook falls back to a simpler slide-and-fade animation instead of the notch spring.
+
+## Fixed
+
+- **Capture panel now appears correctly when the Jotbook menubar icon is hidden by Bartender** (or any other menubar manager). Previously, a hidden icon meant the panel anchored to off-screen coordinates and landed in a screen corner. The panel now anchors to the notch (or the screen-top center on non-notched displays) regardless of whether the status icon is visible.
+
+## Install & update
+
+- **Already installed?** Jotbook auto-updates — you'll get a prompt shortly, or pick *Check for Updates…* in Settings › About to grab it now.
+- **First time?** Download `Jotbook-1.06.dmg`, open it, drag Jotbook to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway (authenticate with Touch ID), then Open in the final dialog.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.06/Jotbook-1.06.dmg" sparkle:edSignature="i76b5gxnQFgFURG7BMl0GajvyTXCnO1DqYKQZ+wAhLMddVKdTqeTgscPmCtvDe91K1b/gXZEdRtYK4ULmiSBDQ==" length="2219132" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
