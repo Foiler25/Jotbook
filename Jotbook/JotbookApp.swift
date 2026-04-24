@@ -1091,14 +1091,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let fadeBand: CGFloat = 14
         let shadowPadding: CGFloat = 24
         // Use the *current* menubar reservation, not the design-time notched
-        // menubar height. When the menubar is hidden (e.g., a full-screen
-        // app is on this screen), menubarHeight drops to 0 and the shape's
-        // top no longer has a large black "behind the menubar" strip, which
-        // would otherwise be visible as a giant dark bar above the gradient.
+        // menubar height. When the menubar is hidden (full-screen app on
+        // this screen), menubarHeight drops to 0 and the shape's top no
+        // longer has a large black "behind the menubar" strip, which would
+        // otherwise be visible as a giant dark bar above the gradient.
         let menubarHeight = anchor.menubarHeight
 
         // Canvas extends from the screen top (overlapping the menubar area
-        // when one is present) down past the editor.
+        // when present) down past the editor.
         let editorTopInset = menubarHeight + collarDrop + fadeBand
         let canvasSize = CGSize(
             width: editorSize.width + shoulderRadius * 2,
@@ -1106,8 +1106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         )
         // Window is larger than the visible canvas so the SwiftUI .shadow on
         // the shape has room to render without being clipped. Extra space on
-        // the sides and below; no extra space on top since the shape's top
-        // edge must land at frame.maxY.
+        // sides and below; no extra space on top since the shape's top edge
+        // must land at frame.maxY.
         let windowSize = CGSize(
             width: canvasSize.width + shadowPadding * 2,
             height: canvasSize.height + shadowPadding
@@ -1134,11 +1134,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let host = NSHostingView(rootView: shell)
         host.frame = canvas.bounds
         host.autoresizingMask = [.width, .height]
+        // Disable safe-area participation — harmless either way and matches
+        // Ditch's NSHostingView setup exactly.
+        if #available(macOS 13.3, *) {
+            host.safeAreaRegions = []
+        }
         canvas.addSubview(host)
         panel.contentView = canvas
-        // Disable AppKit's cached shadow — we draw it in SwiftUI so it tracks
-        // the live shape during the open/close spring instead of lagging
-        // behind as a ghost grey outline.
         panel.hasShadow = false
 
         let x = anchor.centerX - windowSize.width / 2
@@ -1146,9 +1148,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let y = screenTop - windowSize.height
         panel.setFrame(NSRect(x: x, y: y, width: windowSize.width, height: windowSize.height), display: false)
 
-        // Start at alpha 0, order front, then animate
-        // to 1. beginGrouping/endGrouping with duration 0 commits the
-        // alpha = 0 instantly so the first frame doesn't flash at full opacity.
+        // Fade-in animation. This one works reliably — we never figured out
+        // why the symmetric close-path alpha fade doesn't render, even after
+        // exhaustive investigation, so the close is effectively instant.
         NSAnimationContext.beginGrouping()
         NSAnimationContext.current.duration = 0
         panel.alphaValue = 0
@@ -1204,7 +1206,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.isMovableByWindowBackground = false
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
-        panel.level = .popUpMenu
+        // .statusBar, not .popUpMenu. Panels at the popUpMenu level are
+        // auto-dismissed by AppKit on outside click / key resign — it's the
+        // level used for native menu popups — which snap-closes the window
+        // before any animation can play. .statusBar is the level Ditch uses
+        // and doesn't have that implicit system teardown.
+        panel.level = .statusBar
         panel.hasShadow = true
         panel.isReleasedWhenClosed = false
         // No .transient here: .transient lets macOS auto-orderOut the panel
@@ -1304,14 +1311,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             isClosing = false
             return
         }
-        // Shape retract via the shape's inner .animation(_, value: ui.visible)
-        // — no withAnimation needed, and it can't interfere with the alpha
-        // animation below.
-        ui.visible = false
-        // fadeOut pattern: animate alphaValue to 0 in an
-        // NSAnimationContext group, orderOut in the completion handler.
+        withAnimation(.spring(response: 0.40, dampingFraction: 0.85)) {
+            ui.visible = false
+        }
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.40
+            ctx.duration = 0.35
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
             panel.animator().alphaValue = 0
         }, completionHandler: { [weak self, weak panel, weak ui] in
             guard let self else { return }
