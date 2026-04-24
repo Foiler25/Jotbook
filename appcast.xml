@@ -76,5 +76,36 @@ Download `Jotbook-1.04.dmg`, open it, drag Jotbook to Applications. First launch
       ]]></description>
       <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.06/Jotbook-1.06.dmg" sparkle:edSignature="i76b5gxnQFgFURG7BMl0GajvyTXCnO1DqYKQZ+wAhLMddVKdTqeTgscPmCtvDe91K1b/gXZEdRtYK4ULmiSBDQ==" length="2219132" type="application/octet-stream" />
     </item>
+      <item>
+      <title>Jotbook 1.07</title>
+      <pubDate>Fri, 24 Apr 2026 12:38:37 +0000</pubDate>
+      <sparkle:version>1.07</sparkle:version>
+      <sparkle:shortVersionString>1.07</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# Jotbook 1.07
+
+## New
+
+- **⌘F search in the preview window.** Press ⌘F with the preview open — in *either* rendered-markdown mode or editable-text mode — and a dark floating search overlay appears, matching the capture panel's search one-for-one. Type a query, click a result to scroll the preview to that line and highlight it natively. The overlay stays open so you can page through multiple matches; Esc or click anywhere outside to dismiss. In editable mode, the search reads the live buffer, so unsaved edits are findable too.
+- **Search by date.** Typing a date like `2026-04-24` (or any substring of a `###` timestamp header) now surfaces every entry filed under that header — in both the capture panel's ⌘F and the new preview search. Regular text matching still works the same way; date search is additive. The empty-state hint under the search field explains this.
+
+## Changed
+
+- **App-wide dark theme.** The preview window, settings window, and capture panel now consistently use a pure-black background with dark-styled controls. Previously the preview and settings windows followed system appearance; now they match the always-dark notch-blend capture panel so the whole app reads as one surface.
+- **Capture panel is flat solid black.** Removed the black-to-grey collar/fade band that used to sit between the notch and the editor area. The shell is one continuous surface now — a cleaner blend with notched MacBooks, and no visible edge when the panel overlays a dark full-screen app.
+- **Settings window polish.**
+  - Full dark/black treatment.
+  - Brighter divider lines inside each section card, easier to read against the dark surface.
+  - In the middle column's *Preview window* section, the Auto-refresh and Make-editable toggles now live in their own card, separate from the keyboard-shortcut row.
+- **Preview window text-editor mode** now explicitly renders on a black surface with white text, matching the rest of the app instead of inheriting a lighter system text background.
+
+## Install & update
+
+- **Already installed?** Jotbook auto-updates — you'll get a prompt shortly, or pick *Check for Updates…* in Settings › About to grab it now.
+- **First time?** Download `Jotbook-1.07.dmg`, open it, drag Jotbook to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway (authenticate with Touch ID), then Open in the final dialog.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.07/Jotbook-1.07.dmg" sparkle:edSignature="AxYHdkU9y9f6mj2ePGrB7M02e9W4Ld4bb8oQkAlmtxRxAe1ZiBQ6MvZMjNRJkkatHOsK5uNcXmTwO5BfNzFgDg==" length="2259331" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
