@@ -15,6 +15,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import AppKit
+import Combine
+import SwiftUI
 import WebKit
 
 final class PreviewWindowController: NSObject, NSWindowDelegate {
@@ -38,6 +40,12 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
     // Title-bar edit-mode toggle (persists across content-view rebuilds).
     private var editModeButton: NSButton?
 
+    // ⌘F search overlay state.
+    private let searchState = PreviewSearchState()
+    private var searchHost: NSHostingView<PreviewSearchOverlay>?
+    private var searchKeyMonitor: Any?
+    private var searchClickMonitor: Any?
+
     var onClose: (() -> Void)?
 
     override init() {
@@ -50,10 +58,15 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
         window.title = "Jotbook Preview"
         window.center()
         window.isReleasedWhenClosed = false
+        // Force dark appearance + black chrome so the preview matches the
+        // always-dark capture panel.
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = .black
         super.init()
         window.delegate = self
         installEditModeToggle()
         buildContentView()
+        installSearchKeyMonitor()
     }
 
     func show() {
@@ -77,6 +90,9 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
     /// the window is open. Persists any pending edit, then swaps the content
     /// view to match the new mode.
     func rebuildContentView() {
+        // Tear down the search overlay first so it doesn't hold refs to the
+        // content view we're about to replace.
+        dismissSearchOverlay()
         flushIfDirty()
         stopWatcher()
         teardownWebView()
@@ -183,6 +199,9 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
 
     private func buildWebPreview() {
         let web = WKWebView(frame: .zero)
+        // Paint transparent so the black window background shows through
+        // during loads and in any areas the rendered HTML doesn't cover.
+        web.setValue(false, forKey: "drawsBackground")
         window.contentView = web
         webView = web
     }
@@ -200,6 +219,12 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
         tv.isRichText = false
         tv.isEditable = true
         tv.textContainerInset = NSSize(width: 6, height: 8)
+        tv.drawsBackground = true
+        tv.backgroundColor = .black
+        tv.textColor = .white
+        tv.insertionPointColor = .white
+        scrollView.drawsBackground = true
+        scrollView.backgroundColor = .black
         scrollView.hasVerticalScroller = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         textView = tv
@@ -228,6 +253,8 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
         root.translatesAutoresizingMaskIntoConstraints = false
 
         let container = NSView()
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.black.cgColor
         container.addSubview(root)
         NSLayoutConstraint.activate([
             root.leadingAnchor.constraint(equalTo: container.leadingAnchor),
@@ -444,6 +471,8 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
     // MARK: - NSWindowDelegate
 
     func windowWillClose(_ notification: Notification) {
+        dismissSearchOverlay()
+        removeSearchKeyMonitor()
         flushIfDirty()
         stopWatcher()
         teardownWebView()
@@ -485,6 +514,177 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
         snippetBar = nil
         window.contentView = nil
     }
+
+    // MARK: - ⌘F search overlay
+
+    /// Local key monitor scoped to this window. ⌘F presents / focuses the
+    /// search overlay; Esc dismisses it. Both events are consumed so they
+    /// don't bubble to the text view / web view underneath.
+    private func installSearchKeyMonitor() {
+        if let existing = searchKeyMonitor {
+            NSEvent.removeMonitor(existing)
+            searchKeyMonitor = nil
+        }
+        searchKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+            // ⌘F — show / focus the search overlay.
+            if event.keyCode == 3, event.modifierFlags.contains(.command) {
+                self.presentSearchOverlay()
+                return nil
+            }
+            // Esc — dismiss the overlay if it's active. If not, let the
+            // event through so the window's default handling (which ignores
+            // it for preview) still applies without closing the window.
+            if event.keyCode == 53, self.searchState.active {
+                self.dismissSearchOverlay()
+                return nil
+            }
+            return event
+        }
+    }
+
+    private func removeSearchKeyMonitor() {
+        if let m = searchKeyMonitor {
+            NSEvent.removeMonitor(m)
+            searchKeyMonitor = nil
+        }
+    }
+
+    /// Fires for every mouse-down inside the preview window while the overlay
+    /// is up. If the click lands outside the overlay's bounds, dismiss it —
+    /// but pass the event through so the underlying content still gets the
+    /// click (e.g. placing the cursor in the text view).
+    private func installSearchClickMonitor() {
+        removeSearchClickMonitor()
+        searchClickMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] event in
+            guard let self,
+                  event.window === self.window,
+                  let host = self.searchHost else { return event }
+            let pointInHost = host.convert(event.locationInWindow, from: nil)
+            if !host.bounds.contains(pointInHost) {
+                self.dismissSearchOverlay()
+            }
+            return event
+        }
+    }
+
+    private func removeSearchClickMonitor() {
+        if let m = searchClickMonitor {
+            NSEvent.removeMonitor(m)
+            searchClickMonitor = nil
+        }
+    }
+
+    private func presentSearchOverlay() {
+        guard let contentView = window.contentView else { return }
+        // Already showing — just refocus by re-mounting the hosting view's
+        // onAppear. Cheapest way: dismiss and re-present.
+        if searchState.active, searchHost != nil {
+            // Re-make key + refocus the field without rebuilding.
+            window.makeFirstResponder(searchHost)
+            return
+        }
+
+        // Wire the mode-specific search + select callbacks.
+        if textView != nil {
+            searchState.performSearch = { [weak self] query in
+                SearchTarget.search(query, in: self?.textView?.string ?? "")
+            }
+            searchState.onSelect = { [weak self] result in
+                self?.scrollTextViewTo(result.line)
+            }
+        } else {
+            // Read-only markdown mode — search the disk file.
+            searchState.performSearch = { query in
+                SearchTarget.search(query)
+            }
+            searchState.onSelect = { [weak self] result in
+                self?.scrollWebViewTo(result.line)
+            }
+        }
+
+        searchState.query = ""
+        searchState.results = []
+
+        let host = searchHost ?? NSHostingView(rootView: PreviewSearchOverlay(state: searchState))
+        host.translatesAutoresizingMaskIntoConstraints = false
+        host.alphaValue = 0
+
+        if host.superview == nil {
+            contentView.addSubview(host)
+            NSLayoutConstraint.activate([
+                host.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
+                host.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+                host.widthAnchor.constraint(equalToConstant: 320)
+            ])
+        }
+
+        searchHost = host
+        searchState.active = true
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.15
+            host.animator().alphaValue = 1
+        }
+
+        // Click outside the overlay should dismiss it.
+        installSearchClickMonitor()
+
+        // Give the field first-responder so typing lands in the search field.
+        DispatchQueue.main.async { [weak self, weak host] in
+            guard let host else { return }
+            self?.window.makeFirstResponder(host)
+        }
+    }
+
+    private func dismissSearchOverlay() {
+        removeSearchClickMonitor()
+        guard let host = searchHost else {
+            searchState.active = false
+            return
+        }
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.12
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            host.animator().alphaValue = 0
+        }, completionHandler: { [weak self, weak host] in
+            host?.removeFromSuperview()
+            self?.searchHost = nil
+            self?.searchState.active = false
+            self?.searchState.query = ""
+            self?.searchState.results = []
+            // Return focus to the underlying preview (text view if editable,
+            // otherwise let the window decide).
+            if let tv = self?.textView {
+                self?.window.makeFirstResponder(tv)
+            }
+        })
+    }
+
+    /// Scroll + highlight a line in the WKWebView preview.
+    private func scrollWebViewTo(_ line: String) {
+        guard let web = webView else { return }
+        // Escape for embedding in a JS string literal.
+        let encoded = (try? JSONEncoder().encode(line))
+            .flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+        // WebKit's undocumented but long-lived find API — scrolls the match
+        // into view and applies the browser's selection highlight.
+        let js = "window.find(\(encoded), false, false, true, false, false, false);"
+        web.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    /// Scroll + highlight a line in the editable NSTextView preview.
+    private func scrollTextViewTo(_ line: String) {
+        guard let tv = textView else { return }
+        let ns = tv.string as NSString
+        let range = ns.range(of: line)
+        guard range.location != NSNotFound else { return }
+        tv.setSelectedRange(range)
+        tv.scrollRangeToVisible(range)
+        tv.showFindIndicator(for: range)
+    }
 }
 
 extension PreviewWindowController: NSTextViewDelegate {
@@ -499,6 +699,123 @@ extension PreviewWindowController: NSTextViewDelegate {
 /// literal prefix the user wants inserted.
 private final class SnippetButton: NSButton {
     var payload: String = ""
+}
+
+// MARK: - ⌘F search overlay
+
+/// Drives the preview window's ⌘F search overlay. Kept separate from the
+/// capture panel's `NoteEditorState` so the two features can't accidentally
+/// couple; the shape is otherwise identical.
+final class PreviewSearchState: ObservableObject {
+    @Published var active: Bool = false
+    @Published var query: String = ""
+    @Published var results: [SearchResult] = []
+    /// Supplied by the controller so the overlay doesn't need to know whether
+    /// we're currently showing the WKWebView (read disk) or NSTextView (read
+    /// buffer) preview.
+    var performSearch: ((String) -> [SearchResult])? = nil
+    /// Invoked when the user clicks a result row — scrolls the preview content
+    /// to that line and highlights it. Overlay stays open.
+    var onSelect: ((SearchResult) -> Void)? = nil
+}
+
+/// Dark floating search overlay for the preview window. Mirrors the capture
+/// panel's search view one-for-one (see `NoteEditorView.searchView` in
+/// JotbookApp.swift) so the two read as the same feature.
+struct PreviewSearchOverlay: View {
+    @ObservedObject var state: PreviewSearchState
+    @FocusState private var fieldFocused: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search notes", text: $state.query)
+                    .textFieldStyle(.plain)
+                    .focused($fieldFocused)
+                    .onChange(of: state.query) { query in
+                        state.results = state.performSearch?(query) ?? []
+                    }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            Divider()
+            resultsList
+        }
+        .frame(width: 320)
+        .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.22), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.4), radius: 18, y: 6)
+        .preferredColorScheme(.dark)
+        .onAppear {
+            // Slight delay: SwiftUI needs a render pass before the TextField
+            // is ready to accept focus from FocusState. Without this, the
+            // first-responder chain and the focus assignment can race and
+            // the field ends up unfocused.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                fieldFocused = true
+            }
+        }
+    }
+
+    @ViewBuilder private var resultsList: some View {
+        if state.query.isEmpty {
+            VStack(spacing: 4) {
+                Text("Search notes or dates.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Typing a date (e.g. 2026-04-24) surfaces every entry under that header.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+                Text("Esc to close search.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+        } else if state.results.isEmpty {
+            Text("No matches.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+        } else {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(state.results) { result in
+                        Button(action: { state.onSelect?(result) }) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                if !result.stamp.isEmpty {
+                                    Text(result.stamp)
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text(result.line)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(3)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+                        Divider()
+                    }
+                }
+            }
+            .frame(maxHeight: 260)
+        }
+    }
 }
 
 enum PreviewHTML {
@@ -522,9 +839,9 @@ enum PreviewHTML {
             background: #fff;
         }
         @media (prefers-color-scheme: dark) {
-            body { color: #e4e4e4; background: #1e1e1e; }
-            code, pre { background: #2b2b2b; }
-            h1 { border-bottom-color: #444; }
+            body { color: #e4e4e4; background: #000; }
+            code, pre { background: #1a1a1a; }
+            h1 { border-bottom-color: #333; }
             a { color: #4ea1f4; }
         }
         h1 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin: 12px 0 16px; }

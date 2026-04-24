@@ -283,6 +283,7 @@ struct SettingsView: View {
                 .frame(width: 360)
         }
         .frame(minHeight: 820)
+        .background(Color.black)
         .onReceive(NotificationCenter.default.publisher(for: .jotJotbooksChanged)) { _ in
             jotbooks = Jotbooks.all()
             if let active = Jotbooks.active() {
@@ -352,6 +353,13 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        // Slight darkening on top of the default section grey so rows sit
+        // on a surface that's clearly distinct from pure-black chrome.
+        .listRowBackground(Color.white.opacity(0.04))
+        // Brighter separators inside a Section so they read against the
+        // darkened rows.
+        .listRowSeparatorTint(Color.white.opacity(0.18))
     }
 
     private var middleColumn: some View {
@@ -410,6 +418,8 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+            }
+            Section {
                 Toggle("Auto-refresh preview when the file changes", isOn: $previewAutoRefresh)
                 Toggle("Make preview editable (show formatting toolbars)", isOn: $previewEditable)
             }
@@ -451,6 +461,13 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        // Slight darkening on top of the default section grey so rows sit
+        // on a surface that's clearly distinct from pure-black chrome.
+        .listRowBackground(Color.white.opacity(0.04))
+        // Brighter separators inside a Section so they read against the
+        // darkened rows.
+        .listRowSeparatorTint(Color.white.opacity(0.18))
     }
 
     private var rightColumn: some View {
@@ -516,6 +533,13 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        // Slight darkening on top of the default section grey so rows sit
+        // on a surface that's clearly distinct from pure-black chrome.
+        .listRowBackground(Color.white.opacity(0.04))
+        // Brighter separators inside a Section so they read against the
+        // darkened rows.
+        .listRowSeparatorTint(Color.white.opacity(0.18))
     }
 
     private var activeJotbookPath: String {

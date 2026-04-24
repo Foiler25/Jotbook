@@ -38,21 +38,33 @@ struct SearchResult: Identifiable, Equatable {
 }
 
 enum SearchTarget {
+    /// Reads the active Jotbook's target file from disk and searches it.
     static func search(_ query: String) -> [SearchResult] {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return [] }
         let path = resolvedTargetPath()
         let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
         guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+        return search(query, in: contents)
+    }
+
+    /// Searches a provided string. Useful when the caller has a buffer
+    /// (e.g. the preview's editable NSTextView) that may differ from disk.
+    /// Matches both on line content and on the enclosing `### ` timestamp
+    /// header — a query like "2026-04-24" surfaces every entry written under
+    /// that date header.
+    static func search(_ query: String, in contents: String) -> [SearchResult] {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return [] }
         let lowerQuery = trimmed.lowercased()
         var results: [SearchResult] = []
         var currentStamp = ""
+        var stampMatchesQuery = false
         for line in contents.components(separatedBy: "\n") {
             if line.hasPrefix("### ") {
                 currentStamp = String(line.dropFirst(4))
+                stampMatchesQuery = currentStamp.lowercased().contains(lowerQuery)
                 continue
             }
-            if line.lowercased().contains(lowerQuery) {
+            if stampMatchesQuery || line.lowercased().contains(lowerQuery) {
                 let clean = line.trimmingCharacters(in: .whitespaces)
                 if !clean.isEmpty {
                     results.append(SearchResult(stamp: currentStamp, line: clean))
@@ -309,9 +321,14 @@ struct NoteEditorView: View {
         if state.searchQuery.isEmpty {
             VStack {
                 Spacer()
-                Text("Type to search the target file.")
+                Text("Search notes or dates.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Text("Typing a date (e.g. 2026-04-24) surfaces every entry under that header.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
                 Text("Esc to exit search.")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -585,16 +602,15 @@ final class BlendUIState: ObservableObject {
 // size; everything springy happens inside this view.
 //
 // Layout (SwiftUI top-left origin, canvas top aligned with `frame.maxY` so
-// the top `menubarHeight` of the canvas sits inside the menubar region:
-//   y = 0                              panel top = screen top
-//   y in [0, menubarHeight]            shape extends into menubar area; the
-//                                      top edge sits in/behind the physical
-//                                      notch on notched MacBooks
-//   y in [menubarHeight,
-//         menubarHeight + collarDrop]  black lip continuing the notch's black
-//   y in [+, + + fadeBand]             gradient black → windowBackgroundColor
-//   y ≥ menubarHeight + collarDrop
-//     + fadeBand                       editor (prefix bar, text, formatting)
+// the top `menubarHeight` of the canvas sits inside the menubar region):
+//   y = 0                      panel top = screen top
+//   y in [0, menubarHeight]    shape extends into menubar area; the top
+//                              edge sits in/behind the physical notch on
+//                              notched MacBooks
+//   y ≥ menubarHeight          editor content — the whole shell is solid
+//                              black so there's no seam between the
+//                              notch-black and the editor area, and no
+//                              visible edge against dark full-screen apps.
 struct CapturePanelShell: View {
     @ObservedObject var state: NoteEditorState
     @ObservedObject var ui: BlendUIState
@@ -603,8 +619,6 @@ struct CapturePanelShell: View {
     let canvasSize: CGSize
     let notchWidth: CGFloat
     let menubarHeight: CGFloat
-    let collarDrop: CGFloat
-    let fadeBand: CGFloat
     let shoulderRadius: CGFloat
     let bottomRadius: CGFloat
     // Extra room around the shape for the SwiftUI-drawn shadow. The outer
@@ -613,32 +627,16 @@ struct CapturePanelShell: View {
     // is in use (see presentNotchBlendedPanel).
     let shadowPadding: CGFloat
 
-    private var editorTopInset: CGFloat {
-        menubarHeight + collarDrop + fadeBand
-    }
+    private var editorTopInset: CGFloat { menubarHeight }
 
     var body: some View {
         let bodyHeight = editorTopInset + ui.editorSize.height
         let shapeWidth = ui.visible ? canvasSize.width : max(notchWidth, 1)
         let shapeHeight = ui.visible ? bodyHeight : 0
-        let shapeH = max(shapeHeight, 1)
-        let fadeStart = max(0, min(1, (menubarHeight + collarDrop) / shapeH))
-        let fadeEnd = max(fadeStart, min(1, (menubarHeight + collarDrop + fadeBand) / shapeH))
 
         ZStack(alignment: .top) {
             NotchBlendShape(shoulderRadius: shoulderRadius, bottomRadius: bottomRadius)
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .black, location: 0),
-                            .init(color: .black, location: fadeStart),
-                            .init(color: Color(nsColor: .windowBackgroundColor), location: fadeEnd),
-                            .init(color: Color(nsColor: .windowBackgroundColor), location: 1)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .fill(Color.black)
                 .frame(width: shapeWidth, height: shapeHeight)
                 .shadow(color: Color.black.opacity(0.32), radius: 14, x: 0, y: 6)
                 .animation(
@@ -663,12 +661,11 @@ struct CapturePanelShell: View {
         .padding(.horizontal, shadowPadding)
         .padding(.bottom, shadowPadding)
         .opacity(ui.opacity)
-        // No outer .animation(_, value:) modifier on purpose. That modifier
-        // acts as an animation wall that nullifies any withAnimation
-        // transaction for state that it doesn't watch, which was preventing
-        // the close fade. Animations are driven explicitly via
-        // withAnimation at the call site (see showPopover / closeCapture)
-        // or via inner .animation modifiers on the shape + editor above.
+        // Force dark appearance so the editor controls (prefix bar, text
+        // cursor, formatting buttons) render with dark-mode styling on top
+        // of the pure-black shell. Without this they'd use system colors,
+        // which look washed out in light mode.
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -969,8 +966,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 defer: false
             )
             window.title = "Jotbook Settings"
+            // Force dark + black chrome to match the capture panel's
+            // always-dark style.
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.backgroundColor = .black
             window.contentView = NSHostingView(
-                rootView: SettingsView().environmentObject(self.updaterViewModel)
+                rootView: SettingsView()
+                    .environmentObject(self.updaterViewModel)
+                    .preferredColorScheme(.dark)
             )
             window.center()
             window.isReleasedWhenClosed = false
@@ -1060,13 +1063,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         container.wantsLayer = true
         container.layer?.cornerRadius = 10
         container.layer?.masksToBounds = true
-        container.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        container.layer?.backgroundColor = NSColor.black.cgColor
 
         let host = NSHostingView(
             rootView: NoteEditorView(
                 state: editorState,
                 onOpenFile: { [weak self] in self?.openTargetFile() }
             )
+            .preferredColorScheme(.dark)
         )
         host.frame = container.bounds
         host.autoresizingMask = [.width, .height]
@@ -1084,22 +1088,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let shoulderRadius: CGFloat = 14
         let bottomRadius: CGFloat = 16
-        // Visible black+fade below the menubar = collarDrop + fadeBand. Kept
-        // tight so there's no tall dark band before the editor on either a
-        // normal desktop or behind a full-screen app.
-        let collarDrop: CGFloat = 2
-        let fadeBand: CGFloat = 14
         let shadowPadding: CGFloat = 24
         // Use the *current* menubar reservation, not the design-time notched
         // menubar height. When the menubar is hidden (full-screen app on
-        // this screen), menubarHeight drops to 0 and the shape's top no
-        // longer has a large black "behind the menubar" strip, which would
-        // otherwise be visible as a giant dark bar above the gradient.
+        // this screen), menubarHeight drops to 0 so the shell's top sits
+        // right at the screen top instead of leaving a black band.
         let menubarHeight = anchor.menubarHeight
 
         // Canvas extends from the screen top (overlapping the menubar area
-        // when present) down past the editor.
-        let editorTopInset = menubarHeight + collarDrop + fadeBand
+        // when present) down past the editor. The whole shell is solid
+        // black so there's no collar/fade gap between the notch-black and
+        // the editor area — the editor sits directly under the menubar.
+        let editorTopInset = menubarHeight
         let canvasSize = CGSize(
             width: editorSize.width + shoulderRadius * 2,
             height: editorTopInset + maxEditorHeight
@@ -1123,8 +1123,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             canvasSize: canvasSize,
             notchWidth: anchor.notchWidth,
             menubarHeight: menubarHeight,
-            collarDrop: collarDrop,
-            fadeBand: fadeBand,
             shoulderRadius: shoulderRadius,
             bottomRadius: bottomRadius,
             shadowPadding: shadowPadding
