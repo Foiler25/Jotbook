@@ -439,7 +439,7 @@ struct SettingsView: View {
                         .frame(width: 40, height: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Jotbook").font(.headline)
-                        Text("Version \(appVersion) (\(appBuild))")
+                        Text("Version \(appVersion)")
                             .font(.caption).foregroundStyle(.secondary)
                         Text("© 2026 Brandon Villar")
                             .font(.caption).foregroundStyle(.secondary)
@@ -555,10 +555,6 @@ struct SettingsView: View {
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-    }
-
-    private var appBuild: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
     }
 
 private var dailyRotationPreview: String {

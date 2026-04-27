@@ -1132,8 +1132,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let host = NSHostingView(rootView: shell)
         host.frame = canvas.bounds
         host.autoresizingMask = [.width, .height]
-        // Disable safe-area participation — harmless either way and matches
-        // Ditch's NSHostingView setup exactly.
         if #available(macOS 13.3, *) {
             host.safeAreaRegions = []
         }
@@ -1207,8 +1205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // .statusBar, not .popUpMenu. Panels at the popUpMenu level are
         // auto-dismissed by AppKit on outside click / key resign — it's the
         // level used for native menu popups — which snap-closes the window
-        // before any animation can play. .statusBar is the level Ditch uses
-        // and doesn't have that implicit system teardown.
+        // before any animation can play. 
         panel.level = .statusBar
         panel.hasShadow = true
         panel.isReleasedWhenClosed = false
