@@ -107,5 +107,27 @@ Download `Jotbook-1.04.dmg`, open it, drag Jotbook to Applications. First launch
       ]]></description>
       <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.07/Jotbook-1.07.dmg" sparkle:edSignature="AxYHdkU9y9f6mj2ePGrB7M02e9W4Ld4bb8oQkAlmtxRxAe1ZiBQ6MvZMjNRJkkatHOsK5uNcXmTwO5BfNzFgDg==" length="2259331" type="application/octet-stream" />
     </item>
+      <item>
+      <title>Jotbook 1.08</title>
+      <pubDate>Mon, 27 Apr 2026 20:40:52 +0000</pubDate>
+      <sparkle:version>1.08</sparkle:version>
+      <sparkle:shortVersionString>1.08</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# Jotbook 1.08
+
+A small maintenance release. No new features; one minor cosmetic tweak.
+
+## Changed
+
+- **Settings › About** now shows the version as just `Version 1.08`, dropping the redundant build-number suffix that previously read `Version 1.08 (1.08)`.
+
+## Install & update
+
+- **Already installed?** Jotbook auto-updates — you'll get a prompt shortly, or pick *Check for Updates…* in Settings › About to grab it now.
+- **First time?** Download `Jotbook-1.08.dmg`, open it, drag Jotbook to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway (authenticate with Touch ID), then Open in the final dialog.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.08/Jotbook-1.08.dmg" sparkle:edSignature="xso/Fqn5DC8O48ueZZuqrIVD1C7g4NAT1ceOVxzp0dXeFdTkkLzI+N53QkTv53fYjcevEkTYZYjjOn1aF8C0Cw==" length="2259170" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
