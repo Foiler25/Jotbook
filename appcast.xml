@@ -129,5 +129,32 @@ A small maintenance release. No new features; one minor cosmetic tweak.
       ]]></description>
       <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.08/Jotbook-1.08.dmg" sparkle:edSignature="xso/Fqn5DC8O48ueZZuqrIVD1C7g4NAT1ceOVxzp0dXeFdTkkLzI+N53QkTv53fYjcevEkTYZYjjOn1aF8C0Cw==" length="2259170" type="application/octet-stream" />
     </item>
+      <item>
+      <title>Jotbook 1.09</title>
+      <pubDate>Fri, 01 May 2026 17:08:55 +0000</pubDate>
+      <sparkle:version>1.09</sparkle:version>
+      <sparkle:shortVersionString>1.09</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# Jotbook 1.09
+
+A small release focused on always knowing which Jotbook you're writing into.
+
+## New
+
+- **Active Jotbook indicator in the capture panel.** A small label at the top of the capture panel (and the ⌘F search view) shows the name of the Jotbook your note will be saved into. The label updates instantly when you switch Jotbooks via a per-Jotbook hotkey or the menu.
+- **Active Jotbook name in the preview window title.** The preview window title now reads *Jotbook Preview — \<name\>* so it's obvious which Jotbook you're previewing or editing.
+
+## Fixed
+
+- **Preview window now follows Jotbook switches.** Previously, switching Jotbooks while the preview window was open left it showing the previous Jotbook's file. It now reloads the new Jotbook's content (and re-points the file watcher) automatically. Any pending edit to the old file is saved first.
+
+## Install & update
+
+- **Already installed?** Jotbook auto-updates — you'll get a prompt shortly, or pick *Check for Updates…* in Settings › About to grab it now.
+- **First time?** Download `Jotbook-1.09.dmg`, open it, drag Jotbook to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway (authenticate with Touch ID), then Open in the final dialog.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.09/Jotbook-1.09.dmg" sparkle:edSignature="O66BUvXQeb+vP8UAITEgfABhdACF09mjpcSb3qcEedD3yd8smN4ivP54apoq5Sg8CTCxD36VUFH0pXb12t2mCw==" length="2268733" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
