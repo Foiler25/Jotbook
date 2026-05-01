@@ -176,6 +176,10 @@ enum MarkdownFormatter {
 }
 
 struct NoteEditorView: View {
+    /// Height of the active-Jotbook header strip at the top of the panel.
+    /// Exposed so AppDelegate's panel-sizing code can include it.
+    static let jotbookHeaderHeight: CGFloat = 22
+
     @ObservedObject var state: NoteEditorState
     var onOpenFile: () -> Void
     @StateObject private var holder = NoteTextViewHolder()
@@ -184,24 +188,31 @@ struct NoteEditorView: View {
     @AppStorage(DefaultsKey.popoverRecentEditable) private var recentEditable: Bool = false
     @AppStorage(DefaultsKey.showFormattingBar) private var showFormattingBar: Bool = true
     @State private var snippets: [String] = TagPrefixDefaults.load()
+    @State private var activeJotbookName: String = Jotbooks.active()?.name ?? "Notes"
     @FocusState private var searchFieldFocused: Bool
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            jotbookHeader
             if state.searching {
                 searchView
             } else {
                 captureView
             }
         }
+        .frame(width: 320)
         .onAppear {
             snippets = TagPrefixDefaults.load()
+            activeJotbookName = Jotbooks.active()?.name ?? "Notes"
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 focusEditor()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .jotTagPrefixesChanged)) { _ in
             snippets = TagPrefixDefaults.load()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .jotJotbooksChanged)) { _ in
+            activeJotbookName = Jotbooks.active()?.name ?? "Notes"
         }
         .onChange(of: state.searching) { newValue in
             if newValue {
@@ -214,6 +225,23 @@ struct NoteEditorView: View {
                 }
             }
         }
+    }
+
+    private var jotbookHeader: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "book.closed")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text(activeJotbookName)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .frame(width: 320, height: NoteEditorView.jotbookHeaderHeight, alignment: .leading)
+        .background(Color.white.opacity(0.05))
     }
 
     private var captureView: some View {
@@ -1339,11 +1367,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if hasBar { height += 35 }
         if hasRecent { height += 120 }
         if showFormatting { height += 60 }
+        height += NoteEditorView.jotbookHeaderHeight
         return NSSize(width: 320, height: height)
     }
 
     private func searchPopoverSize() -> NSSize {
-        NSSize(width: 320, height: 320)
+        NSSize(width: 320, height: 320 + NoteEditorView.jotbookHeaderHeight)
     }
 
     private func installPopoverKeyMonitor() {

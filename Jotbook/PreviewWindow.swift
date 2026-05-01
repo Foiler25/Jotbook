@@ -46,6 +46,8 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
     private var searchKeyMonitor: Any?
     private var searchClickMonitor: Any?
 
+    private var jotbookChangeObserver: NSObjectProtocol?
+
     var onClose: (() -> Void)?
 
     override init() {
@@ -55,7 +57,6 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Jotbook Preview"
         window.center()
         window.isReleasedWhenClosed = false
         // Force dark appearance + black chrome so the preview matches the
@@ -64,9 +65,44 @@ final class PreviewWindowController: NSObject, NSWindowDelegate {
         window.backgroundColor = .black
         super.init()
         window.delegate = self
+        updateWindowTitle()
         installEditModeToggle()
         buildContentView()
         installSearchKeyMonitor()
+        jotbookChangeObserver = NotificationCenter.default.addObserver(
+            forName: .jotJotbooksChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleActiveJotbookChanged()
+        }
+    }
+
+    deinit {
+        if let observer = jotbookChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    private func updateWindowTitle() {
+        let name = Jotbooks.active()?.name ?? "Notes"
+        window.title = "Jotbook Preview — \(name)"
+    }
+
+    /// Active-Jotbook switch: the resolved target file just changed under us.
+    /// Refresh the title, reload the content from the new path, and re-point
+    /// the read-only mode's file watcher.
+    private func handleActiveJotbookChanged() {
+        updateWindowTitle()
+        // Drop any pending edit to the previous jotbook's file before
+        // swapping in the new one's content.
+        flushIfDirty()
+        if window.isVisible {
+            reload()
+            if textView == nil {
+                setupWatcherIfEnabled()
+            }
+        }
     }
 
     func show() {
