@@ -156,5 +156,30 @@ A small release focused on always knowing which Jotbook you're writing into.
       ]]></description>
       <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.09/Jotbook-1.09.dmg" sparkle:edSignature="O66BUvXQeb+vP8UAITEgfABhdACF09mjpcSb3qcEedD3yd8smN4ivP54apoq5Sg8CTCxD36VUFH0pXb12t2mCw==" length="2268733" type="application/octet-stream" />
     </item>
+      <item>
+      <title>Jotbook 1.09.1</title>
+      <pubDate>Sun, 03 May 2026 01:33:33 +0000</pubDate>
+      <sparkle:version>1.09.1</sparkle:version>
+      <sparkle:shortVersionString>1.09.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+# Jotbook 1.09.1
+
+A small follow-up to 1.09 fixing a rendering bug a few users have reported.
+
+## Fixed
+
+- The capture panel could occasionally open as a solid black box with no visible text on some Macs. Two fixes:
+    - Note text and the typing cursor now use an explicit color, so they always render against the dark capture panel — previously they relied on system defaults that didn't always resolve correctly.
+    - The panel's open animation no longer depends on a fixed wall-clock delay. The editor now fades in once the panel itself has rendered, which removes a timing race that could leave the editor invisible.
+- If you hit the black-panel issue on 1.09, this update should resolve it. If it still happens after upgrading, please file an issue.
+
+## Install & update
+
+- **Already installed?** Jotbook auto-updates — you'll get a prompt shortly, or pick *Check for Updates…* in Settings › About to grab it now.
+- **First time?** Download `Jotbook-1.09.1.dmg`, open it, drag Jotbook to Applications. First launch: right-click → Open, then System Settings → Privacy & Security → Open Anyway (authenticate with Touch ID), then Open in the final dialog.
+      ]]></description>
+      <enclosure url="https://github.com/Foiler25/Jotbook/releases/download/v1.09.1/Jotbook-1.09.1.dmg" sparkle:edSignature="jh366HPUrTKvearuHadRDeRiEcfCjLWjo14yMOyUdgFsr61JcWHY1r6Z//Q9TxkGb+yrHxiXyXWxxazTYlDuAg==" length="2269126" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
