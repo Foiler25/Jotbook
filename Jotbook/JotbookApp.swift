@@ -95,6 +95,8 @@ struct JotTextEditor: NSViewRepresentable {
         textView.isRichText = false
         textView.backgroundColor = .clear
         textView.drawsBackground = false
+        textView.textColor = .labelColor
+        textView.insertionPointColor = .labelColor
         textView.textContainerInset = NSSize(width: 4, height: 6)
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -694,6 +696,18 @@ struct CapturePanelShell: View {
         // of the pure-black shell. Without this they'd use system colors,
         // which look washed out in light mode.
         .preferredColorScheme(.dark)
+        // Flip visibility from .onAppear (after SwiftUI commits the initial
+        // render at visible=false) rather than wall-clock 16ms after
+        // orderFront. The async hop pushes the change into the next
+        // transaction so the .animation(value:) observers on each child are
+        // installed before the value mutates.
+        .onAppear {
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.80)) {
+                    ui.visible = true
+                }
+            }
+        }
     }
 }
 
@@ -1186,12 +1200,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.22
             panel.animator().alphaValue = 1
-        }
-
-        // Wait one display frame so SwiftUI commits the initial render at
-        // visible=false before we flip to true.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak uiState] in
-            uiState?.visible = true
         }
     }
 
